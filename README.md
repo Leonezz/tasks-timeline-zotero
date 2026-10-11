@@ -8,9 +8,10 @@ Requires Zotero 10.
 
 ## Status
 
-M0 (spike): the timeline opens in its own tab (View → Tasks Timeline) and keeps
-tasks in memory for the session only. Reading and writing Zotero notes comes in
-M1/M2.
+M0 (spike): the timeline lives in a sidebar to the right of the item pane in
+the library tab. Toggle it with the toolbar button next to the search box or
+View → Tasks Timeline Sidebar. Tasks are kept in memory for the session only;
+reading and writing Zotero notes comes in M1/M2.
 
 ## Task model (from M1)
 
@@ -27,10 +28,15 @@ The plugin never edits item metadata such as `date` or `Extra`.
 ## Architecture
 
 - `src/index.ts`, `src/hooks.ts`: plugin core in the bootstrap sandbox
-- `src/modules/`: Zotero integration (menu, tab)
-- `src/ui/`: React app, built as a separate IIFE bundle and loaded into the
-  main window so React sees real DOM globals; rendered in a Shadow DOM
+- `src/modules/`: Zotero integration (sidebar, menu)
+- `src/ui/`: React app, built as a separate IIFE bundle and loaded by
+  `addon/content/timeline.html` inside the sidebar iframe
 - `src/shared/uiContract.ts`: the interface between core and UI
+
+The UI must not run directly in the main window: it is a XUL document without
+`document.body`, which framer-motion, Radix and Floating UI all assume. The
+iframe also hides `frameElement` so Floating UI does not walk back into the
+XUL document (see `src/ui/index.tsx`).
 
 ## Development
 
@@ -39,6 +45,7 @@ pnpm install
 cp .env.example .env   # then fill in absolute paths
 pnpm start             # builds, launches Zotero with a dev profile, hot-reloads
 pnpm build             # production build + type check
+pnpm test --exit-on-finish  # integration tests in a throwaway Zotero profile
 ```
 
 Use a dedicated profile and data directory. Always set

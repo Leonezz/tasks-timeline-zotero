@@ -1,6 +1,10 @@
-:host {
-  display: block;
-  width: 100%;
+html,
+body,
+#root {
+  margin: 0;
   height: 100%;
+}
+
+#root {
   overflow: auto;
 }

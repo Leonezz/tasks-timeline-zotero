@@ -1,2 +1,4 @@
-menu-open-timeline =
-    .label = Tasks Timeline
+menu-toggle-sidebar =
+    .label = Tasks Timeline Sidebar
+toolbar-toggle-sidebar =
+    .tooltiptext = Show or hide Tasks Timeline

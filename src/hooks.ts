@@ -1,11 +1,14 @@
 import { initLocale } from "./utils/locale";
+import { setPref } from "./utils/prefs";
 import { createZToolkit } from "./utils/ztoolkit";
+import { registerMenus, unregisterMenus } from "./modules/menu";
 import {
-  openTimelineTabSafely,
-  registerMenus,
-  unregisterMenus,
-} from "./modules/menu";
-import { closeAllTimelineTabs, closeTimelineTab } from "./modules/timelineTab";
+  installSidebar,
+  reportError,
+  toError,
+  uninstallAllSidebars,
+  uninstallSidebar,
+} from "./modules/sidebar";
 
 async function onStartup() {
   await Promise.all([
@@ -14,12 +17,21 @@ async function onStartup() {
     Zotero.uiReadyPromise,
   ]);
 
-  initLocale();
-  registerMenus();
+  try {
+    initLocale();
+    registerMenus();
+    if (__env__ === "development") {
+      setPref("sidebarOpen", true);
+    }
 
-  await Promise.all(
-    Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
-  );
+    await Promise.all(
+      Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
+    );
+  } catch (error) {
+    // Bootstrap swallows startup rejections; make them visible.
+    reportError(toError(error));
+    throw error;
+  }
 
   // Lets the scaffold test runner confirm the plugin loaded.
   addon.data.initialized = true;
@@ -32,17 +44,19 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
     `${addon.data.config.addonRef}-mainWindow.ftl`,
   );
 
-  if (__env__ === "development") {
-    openTimelineTabSafely(win);
+  try {
+    installSidebar(win);
+  } catch (error) {
+    reportError(toError(error));
   }
 }
 
 async function onMainWindowUnload(win: Window): Promise<void> {
-  closeTimelineTab(win as _ZoteroTypes.MainWindow);
+  uninstallSidebar(win as _ZoteroTypes.MainWindow);
 }
 
 function onShutdown(): void {
-  closeAllTimelineTabs();
+  uninstallAllSidebars();
   unregisterMenus();
   ztoolkit.unregisterAll();
   addon.data.alive = false;

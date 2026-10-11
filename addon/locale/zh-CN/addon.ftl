@@ -1,2 +1,1 @@
-tab-title = 任务时间线
-error-open-tab = 任务时间线无法打开：{ $message }
+error-timeline = 任务时间线出错：{ $message }

@@ -1,7 +1,7 @@
 import { config } from "../../package.json";
-import { openTimelineTab, reportError } from "./timelineTab";
+import { reportError, toError, toggleSidebar } from "./sidebar";
 
-const MENU_ID = `${config.addonRef}-view-open-timeline`;
+const MENU_ID = `${config.addonRef}-view-toggle-sidebar`;
 
 export function registerMenus(): void {
   const registered = Zotero.MenuManager.registerMenu({
@@ -12,10 +12,15 @@ export function registerMenus(): void {
       {
         menuType: "menuitem",
         // Scaffold prefixes Fluent IDs with the addon ref.
-        l10nID: `${config.addonRef}-menu-open-timeline`,
+        l10nID: `${config.addonRef}-menu-toggle-sidebar`,
+        enableForTabTypes: ["library"],
         onCommand: (event) => {
           const win = (event.target as Element).ownerGlobal;
-          openTimelineTabSafely(win as _ZoteroTypes.MainWindow);
+          try {
+            toggleSidebar(win as _ZoteroTypes.MainWindow);
+          } catch (error) {
+            reportError(toError(error));
+          }
         },
       },
     ],
@@ -27,12 +32,4 @@ export function registerMenus(): void {
 
 export function unregisterMenus(): void {
   Zotero.MenuManager.unregisterMenu(MENU_ID);
-}
-
-export function openTimelineTabSafely(win: _ZoteroTypes.MainWindow): void {
-  try {
-    openTimelineTab(win);
-  } catch (error) {
-    reportError(error instanceof Error ? error : new Error(String(error)));
-  }
 }

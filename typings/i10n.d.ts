@@ -3,6 +3,6 @@
 /* eslint-disable */
 // @ts-nocheck
 export type FluentMessageId =
-  | 'error-open-tab'
-  | 'menu-open-timeline'
-  | 'tab-title';
+  | 'error-timeline'
+  | 'menu-toggle-sidebar'
+  | 'toolbar-toggle-sidebar';

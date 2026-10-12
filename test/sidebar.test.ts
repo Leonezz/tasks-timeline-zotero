@@ -96,6 +96,29 @@ describe("sidebar", function () {
     assert.isTrue(Zotero.Prefs.get(pref, true));
   });
 
+  it("shows task notes from the library", async function () {
+    const note = new Zotero.Item("note");
+    note.libraryID = Zotero.Libraries.userLibraryID;
+    note.setNote("<p>Sidebar shows this task</p><p>[ ] 📅 2026-10-20</p>");
+    note.addTag("#task");
+    await note.saveTx();
+    try {
+      await waitFor(
+        () => frameDoc.body.textContent?.includes("Sidebar shows this task"),
+        "task title in the timeline",
+      );
+    } finally {
+      await note.eraseTx();
+    }
+  });
+
+  it("rejects edits visibly while the timeline is read-only", async function () {
+    const actions = (Zotero as any)[config.addonInstance].data.taskActions;
+    let message = "";
+    await actions.updateTask({}, {}).catch((e: Error) => (message = e.message));
+    assert.isNotEmpty(message);
+  });
+
   // Regression: framer-motion read document.body of the XUL main window.
   it("switches to AI entry without crashing", async function () {
     press(frameWin, button("Switch to AI task entry"));

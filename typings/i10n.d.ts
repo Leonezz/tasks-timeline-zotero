@@ -3,6 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 export type FluentMessageId =
+  | 'error-load-notes'
+  | 'error-read-only'
   | 'error-timeline'
   | 'menu-toggle-sidebar'
   | 'toolbar-toggle-sidebar';

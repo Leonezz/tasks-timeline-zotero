@@ -32,7 +32,12 @@ function mount(rootEl: HTMLElement, options: MountOptions): MountedTimeline {
   });
   root.render(
     <StrictMode>
-      <TimelineRoot win={win} onError={options.onError} />
+      <TimelineRoot
+        win={win}
+        taskSource={options.taskSource}
+        taskActions={options.taskActions}
+        onError={options.onError}
+      />
     </StrictMode>,
   );
 

@@ -1,8 +1,9 @@
-import { Component, useMemo, useState, useSyncExternalStore } from "react";
+import { Component, useMemo, useSyncExternalStore } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { TasksTimelineApp } from "@tasks-timeline/components";
 import type { Task } from "@tasks-timeline/components";
 import { SessionSettingsRepository } from "./SessionSettingsRepository";
+import type { TaskActions, TaskSource } from "../shared/uiContract";
 
 interface ErrorBoundaryProps {
   onError: (error: Error) => void;
@@ -61,40 +62,58 @@ function useSystemDarkMode(win: Window): boolean {
 }
 
 /**
- * M0: tasks live in component state only. Reading and writing Zotero notes
- * arrives in M1/M2 through the core's task store.
+ * Tasks are created in the core's realm; copy them into this frame's realm so
+ * library code never sees cross-compartment arrays or objects.
  */
-function SessionTimeline({ win }: { win: Window }) {
-  const [tasks, setTasks] = useState<Task[]>([]);
+function useZoteroTasks(source: TaskSource): Task[] {
+  const snapshot = useSyncExternalStore(source.subscribe, source.getTasks);
+  return useMemo(
+    () => JSON.parse(JSON.stringify(snapshot)) as Task[],
+    [snapshot],
+  );
+}
+
+interface TimelineProps {
+  win: Window;
+  taskSource: TaskSource;
+  taskActions: TaskActions;
+  onError: (error: Error) => void;
+}
+
+function ZoteroTimeline({
+  win,
+  taskSource,
+  taskActions,
+  onError,
+}: TimelineProps) {
+  const tasks = useZoteroTasks(taskSource);
   const settingsRepository = useMemo(() => new SessionSettingsRepository(), []);
   const systemInDarkMode = useSystemDarkMode(win);
+  const report = (promise: Promise<void>) =>
+    promise.catch((error: unknown) =>
+      onError(error instanceof Error ? error : new Error(String(error))),
+    );
 
   return (
     <TasksTimelineApp
       tasks={tasks}
       settingsRepository={settingsRepository}
       systemInDarkMode={systemInDarkMode}
-      onTaskAdded={(task) => setTasks((prev) => [...prev, task])}
-      onTaskUpdated={(task) =>
-        setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+      onTaskAdded={(task) => report(taskActions.addTask(task))}
+      onTaskUpdated={(task, previous) =>
+        report(taskActions.updateTask(task, previous))
       }
-      onTaskDeleted={(taskId) =>
-        setTasks((prev) => prev.filter((t) => t.id !== taskId))
+      onTaskDeleted={(taskId, previous) =>
+        report(taskActions.deleteTask(taskId, previous))
       }
     />
   );
 }
 
-export function TimelineRoot({
-  win,
-  onError,
-}: {
-  win: Window;
-  onError: (error: Error) => void;
-}) {
+export function TimelineRoot(props: TimelineProps) {
   return (
-    <TimelineErrorBoundary onError={onError}>
-      <SessionTimeline win={win} />
+    <TimelineErrorBoundary onError={props.onError}>
+      <ZoteroTimeline {...props} />
     </TimelineErrorBoundary>
   );
 }

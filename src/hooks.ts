@@ -1,4 +1,4 @@
-import { initLocale } from "./utils/locale";
+import { getString, initLocale } from "./utils/locale";
 import { setPref } from "./utils/prefs";
 import { createZToolkit } from "./utils/ztoolkit";
 import { registerMenus, unregisterMenus } from "./modules/menu";
@@ -9,6 +9,10 @@ import {
   uninstallAllSidebars,
   uninstallSidebar,
 } from "./modules/sidebar";
+import { DEFAULT_TASK_TAG } from "./tasks/noteFormat";
+import { ZoteroTaskStore } from "./tasks/taskStore";
+import type { TaskLoadFailure } from "./tasks/taskStore";
+import { createReadOnlyTaskActions } from "./tasks/taskActions";
 
 async function onStartup() {
   await Promise.all([
@@ -19,6 +23,12 @@ async function onStartup() {
 
   try {
     initLocale();
+    addon.data.taskActions = createReadOnlyTaskActions();
+    addon.data.taskStore = new ZoteroTaskStore(
+      DEFAULT_TASK_TAG,
+      reportLoadFailures,
+    );
+    await addon.data.taskStore.start();
     registerMenus();
     if (__env__ === "development") {
       setPref("sidebarOpen", true);
@@ -45,7 +55,11 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   );
 
   try {
-    installSidebar(win);
+    const { taskStore, taskActions } = addon.data;
+    if (!taskStore || !taskActions) {
+      throw new Error("Task store is not initialized");
+    }
+    installSidebar(win, { taskSource: taskStore, taskActions });
   } catch (error) {
     reportError(toError(error));
   }
@@ -55,8 +69,23 @@ async function onMainWindowUnload(win: Window): Promise<void> {
   uninstallSidebar(win as _ZoteroTypes.MainWindow);
 }
 
+function reportLoadFailures(failures: TaskLoadFailure[]): void {
+  for (const { noteID, error } of failures) {
+    Zotero.logError(error);
+    Zotero.debug(
+      `[${addon.data.config.addonRef}] note ${noteID}: ${error.message}`,
+    );
+  }
+  reportError(
+    new Error(
+      getString("error-load-notes", { args: { count: failures.length } }),
+    ),
+  );
+}
+
 function onShutdown(): void {
   uninstallAllSidebars();
+  addon.data.taskStore?.stop();
   unregisterMenus();
   ztoolkit.unregisterAll();
   addon.data.alive = false;

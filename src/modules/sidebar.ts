@@ -2,7 +2,12 @@ import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { getPref, setPref } from "../utils/prefs";
 import { UI_READY_EVENT } from "../shared/uiContract";
-import type { MountedTimeline, TimelineUI } from "../shared/uiContract";
+import type {
+  MountedTimeline,
+  TaskActions,
+  TaskSource,
+  TimelineUI,
+} from "../shared/uiContract";
 
 const SIDEBAR_ID = `${config.addonRef}-sidebar`;
 const SPLITTER_ID = `${config.addonRef}-sidebar-splitter`;
@@ -15,7 +20,13 @@ const MIN_WIDTH = 280;
 
 type MainWindow = _ZoteroTypes.MainWindow;
 
+export interface SidebarDeps {
+  taskSource: TaskSource;
+  taskActions: TaskActions;
+}
+
 interface SidebarParts {
+  deps: SidebarDeps;
   splitter: XULElement;
   sidebar: XULElement;
   button: XULElement;
@@ -28,7 +39,7 @@ const installed = new Map<MainWindow, SidebarParts>();
  * Adds the timeline sidebar to the right of the item pane in the library tab,
  * plus a toggle button at the end of the items toolbar.
  */
-export function installSidebar(win: MainWindow): void {
+export function installSidebar(win: MainWindow, deps: SidebarDeps): void {
   if (installed.has(win)) return;
   const doc = win.document;
   const trees = requireElement(doc, "zotero-trees");
@@ -66,7 +77,7 @@ export function installSidebar(win: MainWindow): void {
   button.addEventListener("command", () => toggleSidebar(win));
   toolbar.append(button);
 
-  installed.set(win, { splitter, sidebar, button });
+  installed.set(win, { deps, splitter, sidebar, button });
   setSidebarOpen(win, getPref("sidebarOpen"));
 }
 
@@ -115,7 +126,7 @@ function loadTimeline(win: MainWindow, parts: SidebarParts): void {
     UI_READY_EVENT,
     () => {
       try {
-        parts.mounted = mountInFrame(iframe);
+        parts.mounted = mountInFrame(iframe, parts.deps);
         if (__env__ === "development") {
           logDiagnostics(win, parts.mounted);
         }
@@ -129,7 +140,10 @@ function loadTimeline(win: MainWindow, parts: SidebarParts): void {
   parts.sidebar.append(iframe);
 }
 
-function mountInFrame(iframe: HTMLIFrameElement): MountedTimeline {
+function mountInFrame(
+  iframe: HTMLIFrameElement,
+  deps: SidebarDeps,
+): MountedTimeline {
   const frameWin = iframe.contentWindow as
     (Window & { [UI_GLOBAL]?: { default: TimelineUI } }) | null;
   const ui = frameWin?.[UI_GLOBAL]?.default;
@@ -140,7 +154,7 @@ function mountInFrame(iframe: HTMLIFrameElement): MountedTimeline {
   if (!root) {
     throw new Error(`${PAGE_URL} has no #root element`);
   }
-  return ui.mount(root, { onError: reportError });
+  return ui.mount(root, { ...deps, onError: reportError });
 }
 
 function persistWidth(win: MainWindow): void {

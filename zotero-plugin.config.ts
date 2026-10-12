@@ -1,5 +1,11 @@
+import { createRequire } from "node:module";
+import path from "node:path";
 import { defineConfig } from "zotero-plugin-scaffold";
 import pkg from "./package.json";
+
+const require = createRequire(import.meta.url);
+const packageDir = (name: string) =>
+  path.dirname(require.resolve(`${name}/package.json`));
 
 // Zotero 9 and 10 both run on Firefox 140 ESR.
 const GECKO_TARGET = "firefox140";
@@ -54,6 +60,12 @@ export default defineConfig({
         format: "iife",
         globalName: `__${pkg.config.addonRef}_ui__`,
         jsx: "automatic",
+        // Two copies of React break hooks. Always bundle this project's copy,
+        // even when the component library resolves its own (e.g. pnpm link).
+        alias: {
+          react: packageDir("react"),
+          "react-dom": packageDir("react-dom"),
+        },
         minify: nodeEnv === "production",
         loader: { ".css": "text" },
         target: GECKO_TARGET,

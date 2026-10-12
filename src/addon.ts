@@ -1,6 +1,8 @@
 import { config } from "../package.json";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
+import type { ZoteroTaskStore } from "./tasks/taskStore";
+import type { TaskActions } from "./shared/uiContract";
 
 class Addon {
   public data: {
@@ -12,6 +14,8 @@ class Addon {
     locale?: {
       current: any;
     };
+    taskStore?: ZoteroTaskStore;
+    taskActions?: TaskActions;
   };
   public hooks: typeof hooks;
   public api: object;

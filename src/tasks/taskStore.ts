@@ -27,7 +27,7 @@ export class ZoteroTaskStore implements TaskSource {
   private reloadTimer: number | undefined;
 
   constructor(
-    private readonly taskTag: string,
+    private readonly taskTag: () => string,
     private readonly onLoadFailures: (failures: TaskLoadFailure[]) => void,
   ) {}
 
@@ -76,7 +76,8 @@ export class ZoteroTaskStore implements TaskSource {
   }
 
   private async loadAll(failures: TaskLoadFailure[]): Promise<Task[]> {
-    const tagID = Zotero.Tags.getID(this.taskTag);
+    const taskTag = this.taskTag();
+    const tagID = Zotero.Tags.getID(taskTag);
     // No item has ever carried the tag: there are simply no tasks yet.
     if (tagID === false) return [];
 
@@ -90,7 +91,7 @@ export class ZoteroTaskStore implements TaskSource {
       );
       for (const note of notes) {
         try {
-          tasks.push(this.toTask(note, library, parser));
+          tasks.push(this.toTask(note, library, parser, taskTag));
         } catch (error) {
           failures.push({
             noteID: note.id,
@@ -106,6 +107,7 @@ export class ZoteroTaskStore implements TaskSource {
     note: Zotero.Item,
     library: { libraryID: number; name: string; editable: boolean },
     parser: DOMParser,
+    taskTag: string,
   ): Task {
     const parent = note.parentItem;
     return noteToTask(
@@ -121,7 +123,7 @@ export class ZoteroTaskStore implements TaskSource {
           ? { key: parent.key, title: parent.getDisplayTitle() }
           : undefined,
       },
-      this.taskTag,
+      taskTag,
     );
   }
 }

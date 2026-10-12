@@ -10,10 +10,12 @@ import {
   uninstallAllSidebars,
   uninstallSidebar,
 } from "./modules/sidebar";
-import { DEFAULT_TASK_TAG } from "./tasks/noteFormat";
 import { ZoteroTaskStore } from "./tasks/taskStore";
 import type { TaskLoadFailure } from "./tasks/taskStore";
 import { ZoteroTaskMutations } from "./tasks/taskMutations";
+import { SecretStore } from "./settings/secretStore";
+import { ZoteroSettingsStore } from "./settings/settingsStore";
+import { createZoteroPrefsBridge, getTaskTag } from "./settings/zoteroPrefs";
 
 const ADDON_FTL = `${config.addonRef}-addon.ftl`;
 
@@ -28,15 +30,30 @@ async function onStartup() {
     initLocale();
     // Undo labels are Fluent IDs resolved through Zotero's localization.
     Zotero.ftl.addResourceIds([ADDON_FTL]);
-    addon.data.taskStore = new ZoteroTaskStore(
-      DEFAULT_TASK_TAG,
-      reportLoadFailures,
+    addon.data.settingsStore = new ZoteroSettingsStore(
+      new SecretStore(),
+      (error) =>
+        reportError(
+          new Error(
+            getString("error-settings-load", {
+              args: { message: error.message },
+            }),
+          ),
+        ),
     );
+    addon.data.taskStore = new ZoteroTaskStore(getTaskTag, reportLoadFailures);
     addon.data.taskMutations = new ZoteroTaskMutations(
       addon.data.taskStore,
-      DEFAULT_TASK_TAG,
+      getTaskTag,
     );
     await addon.data.taskStore.start();
+    addon.data.taskTagObserver = Zotero.Prefs.registerObserver(
+      `${config.prefsPrefix}.taskTag`,
+      () => {
+        addon.data.taskStore?.reload().catch((e) => reportError(toError(e)));
+      },
+      true,
+    );
     registerMenus(addon.data.taskMutations);
     if (__env__ === "development") {
       setPref("sidebarOpen", true);
@@ -63,11 +80,19 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   );
 
   try {
-    const { taskStore, taskMutations } = addon.data;
-    if (!taskStore || !taskMutations) {
-      throw new Error("Task store is not initialized");
+    const { taskStore, taskMutations, settingsStore } = addon.data;
+    if (!taskStore || !taskMutations || !settingsStore) {
+      throw new Error("Tasks Timeline services are not initialized");
     }
-    installSidebar(win, { taskSource: taskStore, taskActions: taskMutations });
+    installSidebar(win, {
+      taskSource: taskStore,
+      taskActions: taskMutations,
+      settings: {
+        load: () => settingsStore.load(),
+        save: (settings) => settingsStore.save(settings),
+      },
+      zoteroPrefs: createZoteroPrefsBridge(),
+    });
   } catch (error) {
     reportError(toError(error));
   }
@@ -94,6 +119,9 @@ function reportLoadFailures(failures: TaskLoadFailure[]): void {
 function onShutdown(): void {
   uninstallAllSidebars();
   addon.data.taskStore?.stop();
+  if (addon.data.taskTagObserver) {
+    Zotero.Prefs.unregisterObserver(addon.data.taskTagObserver);
+  }
   Zotero.ftl.removeResourceIds([ADDON_FTL]);
   unregisterMenus();
   ztoolkit.unregisterAll();

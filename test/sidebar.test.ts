@@ -146,6 +146,74 @@ describe("sidebar", function () {
     }
   });
 
+  it("edits the task tag from the Zotero settings tab", async function () {
+    const pref = `${config.prefsPrefix}.taskTag`;
+    try {
+      press(frameWin, button("Open settings and docs"));
+      const tab = await waitFor(
+        () =>
+          Array.from(frameDoc.querySelectorAll("button")).find(
+            (b) => b.textContent?.trim() === "Zotero",
+          ),
+        "Zotero settings tab",
+      );
+      press(frameWin, tab);
+      const input = await waitFor(
+        () =>
+          frameDoc.querySelector(
+            'input[aria-label="Task tag"]',
+          ) as HTMLInputElement | null,
+        "task tag input",
+      );
+      assert.equal(input.value, "#task");
+
+      const typeAndSave = async (value: string) => {
+        const setter = Object.getOwnPropertyDescriptor(
+          frameWin.HTMLInputElement.prototype,
+          "value",
+        )!.set!;
+        setter.call(input, value);
+        input.dispatchEvent(new frameWin.Event("input", { bubbles: true }));
+        await delay(50);
+        input.dispatchEvent(
+          new frameWin.KeyboardEvent("keydown", {
+            key: "Enter",
+            bubbles: true,
+          }),
+        );
+        await delay(100);
+      };
+
+      await typeAndSave("   ");
+      assert.exists(frameDoc.querySelector('[role="alert"]'), "error shown");
+      assert.equal(Zotero.Prefs.get(pref, true), "#task");
+
+      await typeAndSave("#reading-task");
+      assert.equal(Zotero.Prefs.get(pref, true), "#reading-task");
+      assert.notExists(frameDoc.querySelector('[role="alert"]'));
+    } finally {
+      Zotero.Prefs.set(pref, "#task", true);
+      press(frameWin, button("Close settings"));
+    }
+  });
+
+  it("follows Zotero's light/dark appearance", async function () {
+    const original = Zotero.Prefs.get("browser.theme.toolbar-theme", true);
+    try {
+      Zotero.Prefs.set("browser.theme.toolbar-theme", 0, true);
+      await waitFor(
+        () => frameWin.matchMedia("(prefers-color-scheme: dark)").matches,
+        "dark scheme in the sidebar",
+      );
+      Zotero.Prefs.set("browser.theme.toolbar-theme", 1, true);
+      await waitFor(
+        () => !frameWin.matchMedia("(prefers-color-scheme: dark)").matches,
+        "light scheme in the sidebar",
+      );
+    } finally {
+      Zotero.Prefs.set("browser.theme.toolbar-theme", original, true);
+    }
+  });
   // Regression: framer-motion read document.body of the XUL main window.
   it("switches to AI entry without crashing", async function () {
     press(frameWin, button("Switch to AI task entry"));

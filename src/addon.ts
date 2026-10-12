@@ -3,6 +3,7 @@ import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
 import type { ZoteroTaskStore } from "./tasks/taskStore";
 import type { ZoteroTaskMutations } from "./tasks/taskMutations";
+import type { ZoteroSettingsStore } from "./settings/settingsStore";
 
 class Addon {
   public data: {
@@ -16,6 +17,8 @@ class Addon {
     };
     taskStore?: ZoteroTaskStore;
     taskMutations?: ZoteroTaskMutations;
+    settingsStore?: ZoteroSettingsStore;
+    taskTagObserver?: symbol;
   };
   public hooks: typeof hooks;
   public api: object;

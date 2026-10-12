@@ -4,7 +4,7 @@
  * import these types; only the UI bundle provides the implementation.
  */
 
-import type { Task } from "@tasks-timeline/components";
+import type { AppSettings, Task } from "@tasks-timeline/components";
 import { config } from "../../package.json";
 
 /** Dispatched by the UI bundle on its frame element once it can be mounted. */
@@ -26,9 +26,24 @@ export interface TaskActions {
   revealTask: (task: Task) => Promise<void>;
 }
 
+/** Timeline settings persisted by the core (API keys in the login manager). */
+export interface SettingsBridge {
+  load: () => Promise<AppSettings | null>;
+  save: (settings: AppSettings) => Promise<void>;
+}
+
+/** Plugin-level preferences shown in the timeline's "Zotero" settings tab. */
+export interface ZoteroPrefsBridge {
+  getTaskTag: () => string;
+  /** Throws when the tag is invalid. */
+  setTaskTag: (tag: string) => void;
+}
+
 export interface MountOptions {
   taskSource: TaskSource;
   taskActions: TaskActions;
+  settings: SettingsBridge;
+  zoteroPrefs: ZoteroPrefsBridge;
   /** Reports a UI error to the core so it can surface it in Zotero. */
   onError: (error: Error) => void;
 }

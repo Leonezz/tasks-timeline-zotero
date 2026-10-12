@@ -2,8 +2,14 @@ import { Component, useMemo, useSyncExternalStore } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { TasksTimelineApp } from "@tasks-timeline/components";
 import type { Task } from "@tasks-timeline/components";
-import { SessionSettingsRepository } from "./SessionSettingsRepository";
-import type { TaskActions, TaskSource } from "../shared/uiContract";
+import { BridgeSettingsRepository } from "./BridgeSettingsRepository";
+import { ZoteroSettingsTab } from "./ZoteroSettingsTab";
+import type {
+  SettingsBridge,
+  TaskActions,
+  TaskSource,
+  ZoteroPrefsBridge,
+} from "../shared/uiContract";
 
 interface ErrorBoundaryProps {
   onError: (error: Error) => void;
@@ -77,6 +83,8 @@ interface TimelineProps {
   win: Window;
   taskSource: TaskSource;
   taskActions: TaskActions;
+  settings: SettingsBridge;
+  zoteroPrefs: ZoteroPrefsBridge;
   onError: (error: Error) => void;
 }
 
@@ -84,10 +92,25 @@ function ZoteroTimeline({
   win,
   taskSource,
   taskActions,
+  settings,
+  zoteroPrefs,
   onError,
 }: TimelineProps) {
   const tasks = useZoteroTasks(taskSource);
-  const settingsRepository = useMemo(() => new SessionSettingsRepository(), []);
+  const settingsRepository = useMemo(
+    () => new BridgeSettingsRepository(settings),
+    [settings],
+  );
+  const customSettingsTabs = useMemo(
+    () => [
+      {
+        id: "zotero",
+        label: "Zotero",
+        content: <ZoteroSettingsTab prefs={zoteroPrefs} />,
+      },
+    ],
+    [zoteroPrefs],
+  );
   const systemInDarkMode = useSystemDarkMode(win);
   const report = (promise: Promise<void>) =>
     promise.catch((error: unknown) =>
@@ -98,6 +121,7 @@ function ZoteroTimeline({
     <TasksTimelineApp
       tasks={tasks}
       settingsRepository={settingsRepository}
+      customSettingsTabs={customSettingsTabs}
       systemInDarkMode={systemInDarkMode}
       onTaskAdded={(task) => report(taskActions.addTask(task))}
       onTaskUpdated={(task, previous) =>

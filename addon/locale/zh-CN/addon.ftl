@@ -7,3 +7,4 @@ task-for-item-title = 阅读：{ $title }
 undo-edit-task = 编辑任务
 undo-trash-task = 将任务移到回收站
 error-editor-api = Zotero 的笔记编辑器有变动，任务时间线暂不兼容。请关闭这条任务笔记的编辑器后重试，并反馈此问题。
+error-settings-load = 无法读取任务时间线的设置（{ $message }）。本次暂用默认设置，且不会保存修改，原有设置保持不变。

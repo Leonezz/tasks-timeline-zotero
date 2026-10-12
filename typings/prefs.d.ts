@@ -9,6 +9,8 @@ declare namespace _ZoteroTypes {
     PluginPrefsMap: {
       "sidebarOpen": boolean;
       "sidebarWidth": number;
+      "taskTag": string;
+      "appSettings": string;
     };
   }
 }

@@ -4,8 +4,7 @@ import { getPref, setPref } from "../utils/prefs";
 import { UI_READY_EVENT } from "../shared/uiContract";
 import type {
   MountedTimeline,
-  TaskActions,
-  TaskSource,
+  MountOptions,
   TimelineUI,
 } from "../shared/uiContract";
 
@@ -20,10 +19,7 @@ const MIN_WIDTH = 280;
 
 type MainWindow = _ZoteroTypes.MainWindow;
 
-export interface SidebarDeps {
-  taskSource: TaskSource;
-  taskActions: TaskActions;
-}
+export type SidebarDeps = Omit<MountOptions, "onError">;
 
 interface SidebarParts {
   deps: SidebarDeps;

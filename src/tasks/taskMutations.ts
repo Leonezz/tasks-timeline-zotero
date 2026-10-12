@@ -26,7 +26,7 @@ const saveWithUndo = (item: Zotero.Item, options: SaveOptions) =>
 export class ZoteroTaskMutations implements TaskActions {
   constructor(
     private readonly store: ZoteroTaskStore,
-    private readonly taskTag: string,
+    private readonly taskTag: () => string,
   ) {}
 
   addTask = async (task: Task): Promise<void> => {
@@ -162,7 +162,7 @@ export class ZoteroTaskMutations implements TaskActions {
   }
 
   private syncTags(note: Zotero.Item, task: Task): void {
-    const wanted = new Set([this.taskTag, ...task.tags.map((t) => t.name)]);
+    const wanted = new Set([this.taskTag(), ...task.tags.map((t) => t.name)]);
     const current = note.getTags().map((t) => t.tag);
     for (const tag of current) {
       if (!wanted.has(tag)) note.removeTag(tag);

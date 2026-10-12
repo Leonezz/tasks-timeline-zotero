@@ -36,6 +36,8 @@ function mount(rootEl: HTMLElement, options: MountOptions): MountedTimeline {
         win={win}
         taskSource={options.taskSource}
         taskActions={options.taskActions}
+        settings={options.settings}
+        zoteroPrefs={options.zoteroPrefs}
         onError={options.onError}
       />
     </StrictMode>,

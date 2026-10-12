@@ -6,6 +6,7 @@ export type FluentMessageId =
   | 'error-editor-api'
   | 'error-library-read-only'
   | 'error-load-notes'
+  | 'error-settings-load'
   | 'error-task-missing'
   | 'error-task-parent-type'
   | 'error-timeline'

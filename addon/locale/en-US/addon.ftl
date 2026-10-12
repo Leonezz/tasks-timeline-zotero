@@ -10,3 +10,4 @@ task-for-item-title = Read: { $title }
 undo-edit-task = Edit Task
 undo-trash-task = Move Task to Trash
 error-editor-api = Zotero's note editor changed in a way Tasks Timeline doesn't support yet. Close the task's note editor and try again, and please report this.
+error-settings-load = Tasks Timeline settings could not be read ({ $message }). Defaults are used for now and changes won't be saved, so your stored settings stay untouched.

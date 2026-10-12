@@ -97,6 +97,10 @@ export function uninstallAllSidebars(): void {
   }
 }
 
+export function openSidebar(win: MainWindow): void {
+  setSidebarOpen(win, true);
+}
+
 export function toggleSidebar(win: MainWindow): void {
   const parts = requireInstalled(win);
   setSidebarOpen(win, parts.sidebar.collapsed);

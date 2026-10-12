@@ -8,8 +8,10 @@
  *   rest:    description
  */
 import {
+  formatTasksMetadata,
   getTaskStatusFromMarker,
   parseTasksFormatItem,
+  statusToMarker,
 } from "@tasks-timeline/components/tasks-format";
 import type { Task } from "@tasks-timeline/components";
 
@@ -82,6 +84,11 @@ function parseLine(line: string): ParsedLine {
   };
 }
 
+/** True when a block is the metadata line (block 1) rather than prose. */
+export function isMetadataBlock(block: string): boolean {
+  return parseMetadataBlock(block) !== null;
+}
+
 /** Reads the optional metadata block; returns null when block 1 is description. */
 function parseMetadataBlock(
   block: string | undefined,
@@ -117,7 +124,9 @@ export function noteToTask(source: TaskNoteSource, taskTag: string): Task {
     libraryID: String(source.libraryID),
     noteKey: source.key,
     editable: String(source.editable),
+    dateAdded: source.dateAdded,
   };
+  if (fields.createdAt) extra.createdExplicit = "true";
   if (scheduledAt) extra.scheduledAt = scheduledAt;
   if (source.parent) {
     extra.parentKey = source.parent.key;
@@ -142,4 +151,23 @@ export function noteToTask(source: TaskNoteSource, taskTag: string): Task {
       .map((tag) => ({ id: tag, name: tag })),
     extra,
   };
+}
+
+/**
+ * The metadata line written to block 1, e.g. "[x] ⏫ 📅 2026-10-20 ✅ 2026-10-18".
+ * ➕ is only written when the note already had one or the created date was
+ * changed; otherwise the note's own dateAdded is the created date.
+ */
+export function metadataLineFor(task: Task): string {
+  const extra = task.extra ?? {};
+  const createdChanged =
+    extra.dateAdded !== undefined &&
+    task.createdAt !== undefined &&
+    task.createdAt.slice(0, 10) !== extra.dateAdded;
+  const writeCreated = extra.createdExplicit === "true" || createdChanged;
+  const metadata = formatTasksMetadata({
+    ...task,
+    createdAt: writeCreated ? task.createdAt : undefined,
+  });
+  return `[${statusToMarker(task.status)}] ${metadata}`.trim();
 }

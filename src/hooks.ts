@@ -1,3 +1,4 @@
+import { config } from "../package.json";
 import { getString, initLocale } from "./utils/locale";
 import { setPref } from "./utils/prefs";
 import { createZToolkit } from "./utils/ztoolkit";
@@ -12,7 +13,9 @@ import {
 import { DEFAULT_TASK_TAG } from "./tasks/noteFormat";
 import { ZoteroTaskStore } from "./tasks/taskStore";
 import type { TaskLoadFailure } from "./tasks/taskStore";
-import { createReadOnlyTaskActions } from "./tasks/taskActions";
+import { ZoteroTaskMutations } from "./tasks/taskMutations";
+
+const ADDON_FTL = `${config.addonRef}-addon.ftl`;
 
 async function onStartup() {
   await Promise.all([
@@ -23,13 +26,18 @@ async function onStartup() {
 
   try {
     initLocale();
-    addon.data.taskActions = createReadOnlyTaskActions();
+    // Undo labels are Fluent IDs resolved through Zotero's localization.
+    Zotero.ftl.addResourceIds([ADDON_FTL]);
     addon.data.taskStore = new ZoteroTaskStore(
       DEFAULT_TASK_TAG,
       reportLoadFailures,
     );
+    addon.data.taskMutations = new ZoteroTaskMutations(
+      addon.data.taskStore,
+      DEFAULT_TASK_TAG,
+    );
     await addon.data.taskStore.start();
-    registerMenus();
+    registerMenus(addon.data.taskMutations);
     if (__env__ === "development") {
       setPref("sidebarOpen", true);
     }
@@ -55,11 +63,11 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   );
 
   try {
-    const { taskStore, taskActions } = addon.data;
-    if (!taskStore || !taskActions) {
+    const { taskStore, taskMutations } = addon.data;
+    if (!taskStore || !taskMutations) {
       throw new Error("Task store is not initialized");
     }
-    installSidebar(win, { taskSource: taskStore, taskActions });
+    installSidebar(win, { taskSource: taskStore, taskActions: taskMutations });
   } catch (error) {
     reportError(toError(error));
   }
@@ -86,6 +94,7 @@ function reportLoadFailures(failures: TaskLoadFailure[]): void {
 function onShutdown(): void {
   uninstallAllSidebars();
   addon.data.taskStore?.stop();
+  Zotero.ftl.removeResourceIds([ADDON_FTL]);
   unregisterMenus();
   ztoolkit.unregisterAll();
   addon.data.alive = false;

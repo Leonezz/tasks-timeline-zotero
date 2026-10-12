@@ -3,8 +3,15 @@
 /* eslint-disable */
 // @ts-nocheck
 export type FluentMessageId =
+  | 'error-editor-api'
+  | 'error-library-read-only'
   | 'error-load-notes'
-  | 'error-read-only'
+  | 'error-task-missing'
+  | 'error-task-parent-type'
   | 'error-timeline'
+  | 'menu-add-task-for-item'
   | 'menu-toggle-sidebar'
-  | 'toolbar-toggle-sidebar';
+  | 'task-for-item-title'
+  | 'toolbar-toggle-sidebar'
+  | 'undo-edit-task'
+  | 'undo-trash-task';

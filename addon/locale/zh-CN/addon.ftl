@@ -1,3 +1,9 @@
 error-timeline = 任务时间线出错：{ $message }
-error-read-only = 暂不支持在时间线中编辑任务，请直接在 Zotero 中编辑任务笔记。
 error-load-notes = { $count } 条任务笔记读取失败，详情见错误控制台。
+error-task-missing = 这条任务的笔记已不存在，时间线会自动刷新。
+error-library-read-only = “{ $name }”是只读的，无法在这里修改其中的任务。
+error-task-parent-type = 只能为普通条目添加任务。
+task-for-item-title = 阅读：{ $title }
+undo-edit-task = 编辑任务
+undo-trash-task = 将任务移到回收站
+error-editor-api = Zotero 的笔记编辑器有变动，任务时间线暂不兼容。请关闭这条任务笔记的编辑器后重试，并反馈此问题。

@@ -106,6 +106,7 @@ function ZoteroTimeline({
       onTaskDeleted={(taskId, previous) =>
         report(taskActions.deleteTask(taskId, previous))
       }
+      onItemClick={(task) => report(taskActions.revealTask(task))}
     />
   );
 }

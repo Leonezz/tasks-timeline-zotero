@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TASK_TAG,
+  isMetadataBlock,
+  metadataLineFor,
   noteToTask,
   parseTaskId,
   taskIdFor,
@@ -171,5 +173,66 @@ describe("noteToTask", () => {
       parentKey: "PARENT01",
       parentTitle: "Attention Is All You Need",
     });
+  });
+});
+
+describe("metadataLineFor", () => {
+  const read = (blocks: string[]) =>
+    noteToTask(source({ blocks }), DEFAULT_TASK_TAG);
+
+  it("writes the status marker even without other metadata", () => {
+    expect(metadataLineFor(read(["T"]))).toBe("[ ]");
+  });
+
+  it("writes priority and dates in Tasks order", () => {
+    const task = {
+      ...read(["T"]),
+      status: "done" as const,
+      priority: "high" as const,
+      dueAt: "2026-10-20",
+      startAt: "2026-10-15",
+      completedAt: "2026-10-18T09:30:00.000+08:00",
+    };
+    expect(metadataLineFor(task)).toBe(
+      "[x] ⏫ 📅 2026-10-20 🛫 2026-10-15 ✅ 2026-10-18",
+    );
+  });
+
+  it("does not write ➕ when created date is just the note's dateAdded", () => {
+    const task = read(["T", "[ ] 📅 2026-10-20"]);
+    expect(task.createdAt).toBe("2026-10-01");
+    expect(metadataLineFor(task)).toBe("[ ] 📅 2026-10-20");
+  });
+
+  it("keeps ➕ the note already had", () => {
+    const task = read(["T", "[ ] ➕ 2026-09-01"]);
+    expect(metadataLineFor(task)).toBe("[ ] ➕ 2026-09-01");
+  });
+
+  it("writes ➕ when the created date was changed", () => {
+    const task = { ...read(["T"]), createdAt: "2026-09-15" };
+    expect(metadataLineFor(task)).toBe("[ ] ➕ 2026-09-15");
+  });
+
+  it("omits ➕ for brand new tasks", () => {
+    const task = { ...read(["T"]), createdAt: "2026-10-13", extra: undefined };
+    expect(metadataLineFor(task)).toBe("[ ]");
+  });
+
+  it("round-trips through noteToTask", () => {
+    const original = read([
+      "T",
+      "[/] 🔽 📅 2026-10-20 ⏳ 2026-10-19 🔁 every week",
+    ]);
+    const line = metadataLineFor(original);
+    expect(isMetadataBlock(line)).toBe(true);
+    const reread = read(["T", line]);
+    expect(reread).toMatchObject({
+      status: "doing",
+      priority: "low",
+      dueAt: "2026-10-20",
+      recurringInterval: "every week",
+    });
+    expect(reread.extra?.scheduledAt).toBe("2026-10-19");
   });
 });

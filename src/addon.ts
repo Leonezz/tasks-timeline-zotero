@@ -2,7 +2,7 @@ import { config } from "../package.json";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
 import type { ZoteroTaskStore } from "./tasks/taskStore";
-import type { TaskActions } from "./shared/uiContract";
+import type { ZoteroTaskMutations } from "./tasks/taskMutations";
 
 class Addon {
   public data: {
@@ -15,7 +15,7 @@ class Addon {
       current: any;
     };
     taskStore?: ZoteroTaskStore;
-    taskActions?: TaskActions;
+    taskMutations?: ZoteroTaskMutations;
   };
   public hooks: typeof hooks;
   public api: object;

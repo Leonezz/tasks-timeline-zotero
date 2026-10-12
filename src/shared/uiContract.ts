@@ -22,6 +22,8 @@ export interface TaskActions {
   addTask: (task: Task) => Promise<void>;
   updateTask: (task: Task, previous: Task) => Promise<void>;
   deleteTask: (taskId: string, previous: Task) => Promise<void>;
+  /** Shows the task's note in the library. */
+  revealTask: (task: Task) => Promise<void>;
 }
 
 export interface MountOptions {

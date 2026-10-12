@@ -112,11 +112,38 @@ describe("sidebar", function () {
     }
   });
 
-  it("rejects edits visibly while the timeline is read-only", async function () {
-    const actions = (Zotero as any)[config.addonInstance].data.taskActions;
-    let message = "";
-    await actions.updateTask({}, {}).catch((e: Error) => (message = e.message));
-    assert.isNotEmpty(message);
+  it("writes a status change made in the timeline back to the note", async function () {
+    const note = new Zotero.Item("note");
+    note.libraryID = Zotero.Libraries.userLibraryID;
+    note.setNote("<p>Click to finish</p><p>[ ] 📅 2026-10-20</p>");
+    note.addTag("#task");
+    await note.saveTx();
+    try {
+      const statusButton = await waitFor(
+        () =>
+          frameDoc.querySelector(
+            'button[aria-label^="Change status for Click to finish"]',
+          ),
+        "status button",
+      );
+      press(frameWin, statusButton);
+      const done = await waitFor(
+        () =>
+          frameDoc.querySelector(
+            'button[aria-label="Set Click to finish status to done"]',
+          ),
+        "done option",
+      );
+      press(frameWin, done);
+      await waitFor(
+        () => Zotero.Items.get(note.id).getNote().includes("<p>[x] "),
+        "note to be marked done",
+      );
+      assert.match(note.getNote(), /\[x\] 📅 2026-10-20 ✅ \d{4}-\d{2}-\d{2}/);
+      assert.deepEqual(uiErrors, []);
+    } finally {
+      await note.eraseTx();
+    }
   });
 
   // Regression: framer-motion read document.body of the XUL main window.

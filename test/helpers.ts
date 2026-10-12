@@ -67,3 +67,14 @@ export async function openTimeline(win: any) {
   );
   return { doc, frameWin: iframe.contentWindow as any };
 }
+
+/** Removes every login the plugin stored (sync or async API, per Firefox). */
+export async function removePluginLogins() {
+  const logins = Services.logins as any;
+  for (const login of await logins.searchLoginsAsync({
+    origin: `chrome://${config.addonRef}`,
+  })) {
+    if (logins.removeLoginAsync) await logins.removeLoginAsync(login);
+    else logins.removeLogin(login);
+  }
+}

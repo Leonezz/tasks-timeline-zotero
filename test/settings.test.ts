@@ -1,5 +1,6 @@
 import { assert } from "chai";
 import { config } from "../package.json";
+import { removePluginLogins } from "./helpers";
 
 const PREFS = config.prefsPrefix;
 
@@ -43,11 +44,7 @@ describe("settings", function () {
   after(async function () {
     Zotero.Prefs.set(`${PREFS}.appSettings`, savedPref, true);
     Zotero.Prefs.set(`${PREFS}.taskTag`, "#task", true);
-    for (const login of await Services.logins.searchLoginsAsync({
-      origin: `chrome://${config.addonRef}`,
-    })) {
-      Services.logins.removeLogin(login);
-    }
+    await removePluginLogins();
   });
 
   function sampleSettings(apiKey: string) {

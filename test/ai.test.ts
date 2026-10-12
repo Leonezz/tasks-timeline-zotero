@@ -6,6 +6,7 @@ import {
   openTimeline,
   press,
   remountSidebar,
+  removePluginLogins,
   waitFor,
 } from "./helpers";
 
@@ -122,11 +123,7 @@ describe("AI agent in the sidebar", function () {
     for (const item of created) {
       if (Zotero.Items.get(item.id)) await item.eraseTx();
     }
-    for (const login of await Services.logins.searchLoginsAsync({
-      origin: `chrome://${config.addonRef}`,
-    })) {
-      Services.logins.removeLogin(login);
-    }
+    await removePluginLogins();
     // Leave a fresh timeline (manual entry, default settings) for other suites.
     await remountSidebar(win);
   });

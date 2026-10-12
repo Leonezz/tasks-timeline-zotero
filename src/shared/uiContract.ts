@@ -39,11 +39,17 @@ export interface ZoteroPrefsBridge {
   setTaskTag: (tag: string) => void;
 }
 
+export interface AiBridge {
+  /** Zotero-specific context for the agent's system prompt. */
+  systemPrompt: () => string;
+}
+
 export interface MountOptions {
   taskSource: TaskSource;
   taskActions: TaskActions;
   settings: SettingsBridge;
   zoteroPrefs: ZoteroPrefsBridge;
+  ai: AiBridge;
   /** Reports a UI error to the core so it can surface it in Zotero. */
   onError: (error: Error) => void;
 }

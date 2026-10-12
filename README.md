@@ -23,6 +23,19 @@ and edits made in the timeline are written back to the notes.
 - Tasks in read-only group libraries are shown but can't be edited.
 - Clicking a task's metadata row selects its note in the library.
 
+## Settings and AI
+
+- Timeline settings are saved in Zotero's prefs. API keys are kept in
+  Firefox's login manager (protected by your primary password if you set
+  one), never in prefs.js.
+- Settings → Zotero sets the task tag (default `#task`).
+- The AI assistant (AI entry in the input bar) can create, update, complete
+  and delete tasks. It asks before deleting or changing view settings. It
+  knows it runs in Zotero and which libraries are read-only. Any provider
+  supported by the timeline works, including OpenAI-compatible local models.
+- Voice input starts disabled: Zotero's engine has no browser speech
+  recognition, so only the OpenAI/Gemini transcription providers can work.
+
 ## Task notes
 
 A task is a Zotero note tagged `#task`:

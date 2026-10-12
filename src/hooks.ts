@@ -16,6 +16,7 @@ import { ZoteroTaskMutations } from "./tasks/taskMutations";
 import { SecretStore } from "./settings/secretStore";
 import { ZoteroSettingsStore } from "./settings/settingsStore";
 import { createZoteroPrefsBridge, getTaskTag } from "./settings/zoteroPrefs";
+import { zoteroSystemPrompt } from "./ai/systemPrompt";
 
 const ADDON_FTL = `${config.addonRef}-addon.ftl`;
 
@@ -92,6 +93,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
         save: (settings) => settingsStore.save(settings),
       },
       zoteroPrefs: createZoteroPrefsBridge(),
+      ai: { systemPrompt: zoteroSystemPrompt },
     });
   } catch (error) {
     reportError(toError(error));

@@ -4,6 +4,7 @@ import { createZToolkit } from "./utils/ztoolkit";
 import type { ZoteroTaskStore } from "./tasks/taskStore";
 import type { ZoteroTaskMutations } from "./tasks/taskMutations";
 import type { ZoteroSettingsStore } from "./settings/settingsStore";
+import type { AiBridge } from "./shared/uiContract";
 
 class Addon {
   public data: {
@@ -19,6 +20,7 @@ class Addon {
     taskMutations?: ZoteroTaskMutations;
     settingsStore?: ZoteroSettingsStore;
     taskTagObserver?: symbol;
+    aiBridge?: AiBridge;
   };
   public hooks: typeof hooks;
   public api: object;

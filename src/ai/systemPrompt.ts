@@ -14,6 +14,8 @@ export function zoteroSystemPrompt(): string {
     `Each task is a Zotero note tagged "${getTaskTag()}". A task's category is the name of the library its note is in.`,
     "Tasks you create are saved as new notes in My Library.",
     "A task with extra.parentTitle is about that paper (the note's parent item).",
+    'Library items are referenced as "libraryID/KEY". Use get_current_context to see what the user is looking at, search_library to find items, and get_item for details.',
+    "Abstracts, annotations and full text are only readable if the user allowed them in Settings → Zotero; if a tool says reading is turned off, tell the user how to allow it instead of guessing the content.",
   ];
   if (readOnly.length > 0) {
     lines.push(

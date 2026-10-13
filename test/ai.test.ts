@@ -226,6 +226,42 @@ describe("AI agent in the sidebar", function () {
     );
   });
 
+  it("lets the agent search the library and read an item", async function () {
+    const paper = new Zotero.Item("journalArticle");
+    paper.libraryID = Zotero.Libraries.userLibraryID;
+    paper.setField("title", "Deep Residual Learning (agent test)");
+    paper.setField("abstractNote", "Residual connections ease training.");
+    await paper.saveTx({ skipSelect: true } as any);
+    created.push(paper);
+    const paperRef = `${paper.libraryID}/${paper.key}`;
+
+    nextToolCall = {
+      name: "search_library",
+      args: { query: "Deep Residual Learning (agent test)" },
+    };
+    await ask("Find the ResNet paper");
+    await waitFor(() => requests.length >= 2, "search round trip");
+    const searchResult = JSON.parse(requests[1].messages.at(-1).content);
+    assert.deepEqual(
+      searchResult.items.map((i: any) => i.ref),
+      [paperRef],
+    );
+
+    // Abstracts are off by default: the model is told, not given the text.
+    requests = [];
+    nextToolCall = { name: "get_item", args: { ref: paperRef } };
+    await ask("What is it about?");
+    await waitFor(() => requests.length >= 2, "get_item round trip");
+    const item = JSON.parse(requests[1].messages.at(-1).content);
+    assert.equal(item.title, "Deep Residual Learning (agent test)");
+    assert.match(item.abstract, /not shared/);
+    assert.notInclude(JSON.stringify(requests), "Residual connections");
+    assert.include(
+      requests[0].tools.map((t: any) => t.function.name),
+      "get_current_context",
+    );
+  });
+
   it("asks before deleting, and trashes the note when confirmed", async function () {
     const note = await createTaskNote("Delete me via AI");
     nextToolCall = {

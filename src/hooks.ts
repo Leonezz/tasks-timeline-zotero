@@ -16,7 +16,7 @@ import { ZoteroTaskMutations } from "./tasks/taskMutations";
 import { SecretStore } from "./settings/secretStore";
 import { ZoteroSettingsStore } from "./settings/settingsStore";
 import { createZoteroPrefsBridge, getTaskTag } from "./settings/zoteroPrefs";
-import { zoteroSystemPrompt } from "./ai/systemPrompt";
+import { createAiBridge } from "./ai/aiBridge";
 
 const ADDON_FTL = `${config.addonRef}-addon.ftl`;
 
@@ -47,6 +47,7 @@ async function onStartup() {
       addon.data.taskStore,
       getTaskTag,
     );
+    addon.data.aiBridge = createAiBridge();
     await addon.data.taskStore.start();
     addon.data.taskTagObserver = Zotero.Prefs.registerObserver(
       `${config.prefsPrefix}.taskTag`,
@@ -81,8 +82,8 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
   );
 
   try {
-    const { taskStore, taskMutations, settingsStore } = addon.data;
-    if (!taskStore || !taskMutations || !settingsStore) {
+    const { taskStore, taskMutations, settingsStore, aiBridge } = addon.data;
+    if (!taskStore || !taskMutations || !settingsStore || !aiBridge) {
       throw new Error("Tasks Timeline services are not initialized");
     }
     installSidebar(win, {
@@ -93,7 +94,7 @@ async function onMainWindowLoad(win: _ZoteroTypes.MainWindow): Promise<void> {
         save: (settings) => settingsStore.save(settings),
       },
       zoteroPrefs: createZoteroPrefsBridge(),
-      ai: { systemPrompt: zoteroSystemPrompt },
+      ai: aiBridge,
     });
   } catch (error) {
     reportError(toError(error));

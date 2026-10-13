@@ -33,6 +33,11 @@ and edits made in the timeline are written back to the notes.
   and delete tasks. It asks before deleting or changing view settings. It
   knows it runs in Zotero and which libraries are read-only. Any provider
   supported by the timeline works, including OpenAI-compatible local models.
+- The assistant can also read your library: what you have selected, search by
+  title/creator/year, tag or collection, and item details. Titles, creators,
+  years and tags are always available to it; abstracts, annotations and full
+  text are only shared with your AI provider if you allow them in
+  Settings → Zotero (all off by default).
 - Voice input starts disabled: Zotero's engine has no browser speech
   recognition, so only the OpenAI/Gemini transcription providers can work.
 
@@ -57,6 +62,8 @@ Focus on section 3.                       ← description
 
 - `src/index.ts`, `src/hooks.ts`: plugin core in the bootstrap sandbox
 - `src/modules/`: Zotero integration (sidebar, menu)
+- `src/ai/`: the agent's Zotero context — system prompt and read-only
+  library tools (`libraryTools.ts`), exposed to the UI through `aiBridge.ts`
 - `src/tasks/`: task notes — `noteFormat.ts` (pure note ⇄ task mapping, unit
   tested), `noteBlocks.ts` (note HTML → text blocks), `noteEditing.ts` (edit
   note HTML in place), `taskStore.ts` (library queries + Notifier refresh),

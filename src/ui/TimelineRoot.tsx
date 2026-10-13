@@ -4,6 +4,7 @@ import { TasksTimelineApp } from "@tasks-timeline/components";
 import type { Task } from "@tasks-timeline/components";
 import { BridgeSettingsRepository } from "./BridgeSettingsRepository";
 import { ZoteroSettingsTab } from "./ZoteroSettingsTab";
+import { zoteroToolSpecs } from "./zoteroTools";
 import type {
   AiBridge,
   SettingsBridge,
@@ -104,6 +105,7 @@ function ZoteroTimeline({
     () => new BridgeSettingsRepository(settings),
     [settings],
   );
+  const aiExtraTools = useMemo(() => zoteroToolSpecs(ai), [ai]);
   const customSettingsTabs = useMemo(
     () => [
       {
@@ -126,6 +128,7 @@ function ZoteroTimeline({
       settingsRepository={settingsRepository}
       customSettingsTabs={customSettingsTabs}
       aiSystemPrompt={ai.systemPrompt()}
+      aiExtraTools={aiExtraTools}
       systemInDarkMode={systemInDarkMode}
       onTaskAdded={(task) => report(taskActions.addTask(task))}
       onTaskUpdated={(task, previous) =>

@@ -191,6 +191,22 @@ describe("sidebar", function () {
       await typeAndSave("#reading-task");
       assert.equal(Zotero.Prefs.get(pref, true), "#reading-task");
       assert.notExists(frameDoc.querySelector('[role="alert"]'));
+
+      // Library access checkboxes write the AI read permissions.
+      const abstracts = frameDoc.querySelector(
+        'input[aria-label="Abstracts"]',
+      ) as HTMLInputElement;
+      assert.isFalse(abstracts.checked);
+      abstracts.click();
+      await delay(100);
+      assert.isTrue(
+        Zotero.Prefs.get(`${config.prefsPrefix}.aiReadAbstracts`, true),
+      );
+      abstracts.click();
+      await delay(100);
+      assert.isFalse(
+        Zotero.Prefs.get(`${config.prefsPrefix}.aiReadAbstracts`, true),
+      );
     } finally {
       Zotero.Prefs.set(pref, "#task", true);
       press(frameWin, button("Close settings"));

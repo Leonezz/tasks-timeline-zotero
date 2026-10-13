@@ -11,6 +11,9 @@ declare namespace _ZoteroTypes {
       "sidebarWidth": number;
       "taskTag": string;
       "appSettings": string;
+      "aiReadAbstracts": boolean;
+      "aiReadAnnotations": boolean;
+      "aiReadFulltext": boolean;
     };
   }
 }

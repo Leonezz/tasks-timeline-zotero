@@ -5,6 +5,7 @@
  */
 
 import type { AppSettings, Task } from "@tasks-timeline/components";
+import type { HostToolDescriptor, LibraryAccess } from "../ai/libraryTools";
 import { config } from "../../package.json";
 
 /** Dispatched by the UI bundle on its frame element once it can be mounted. */
@@ -37,11 +38,20 @@ export interface ZoteroPrefsBridge {
   getTaskTag: () => string;
   /** Throws when the tag is invalid. */
   setTaskTag: (tag: string) => void;
+  getLibraryAccess: () => LibraryAccess;
+  setLibraryAccess: (access: Partial<LibraryAccess>) => void;
 }
 
 export interface AiBridge {
   /** Zotero-specific context for the agent's system prompt. */
   systemPrompt: () => string;
+  /** Library tools the agent can call (in addition to the task tools). */
+  tools: () => HostToolDescriptor[];
+  /** Runs a library tool in the core; rejects with a message on failure. */
+  executeTool: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<unknown>;
 }
 
 export interface MountOptions {

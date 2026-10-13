@@ -52,6 +52,20 @@ export interface AiBridge {
     name: string,
     args: Record<string, unknown>,
   ) => Promise<unknown>;
+  /** For tools with needsConfirmation: builds a plan without writing. */
+  prepareTool: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<PlanForReview>;
+  /** Applies a prepared plan once; `selected` are indices into its choices. */
+  commitTool: (token: string, selected: number[]) => Promise<unknown>;
+}
+
+export interface PlanForReview {
+  token: string;
+  title: string;
+  summary: Record<string, unknown>;
+  choices: { label: string; detail?: string }[];
 }
 
 export interface MountOptions {

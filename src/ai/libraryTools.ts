@@ -28,11 +28,30 @@ export interface HostToolDescriptor {
     properties: Record<string, { type: string; description: string }>;
     required?: string[];
   };
+  /** The user must approve a prepared plan before the tool writes anything. */
+  needsConfirmation?: boolean;
 }
 
-interface HostTool extends HostToolDescriptor {
-  execute: (args: Record<string, unknown>) => Promise<unknown>;
+/** A write the user reviews first: choose which choices to apply, or none. */
+export interface PreparedPlan {
+  title: string;
+  summary: Record<string, unknown>;
+  choices: { label: string; detail?: string }[];
+  /** Applies the chosen choices (indices into `choices`). */
+  commit: (selected: number[]) => Promise<unknown>;
 }
+
+export type HostTool = Omit<HostToolDescriptor, "needsConfirmation"> &
+  (
+    | {
+        execute: (args: Record<string, unknown>) => Promise<unknown>;
+        prepare?: never;
+      }
+    | {
+        prepare: (args: Record<string, unknown>) => Promise<PreparedPlan>;
+        execute?: never;
+      }
+  );
 
 const MAX_SEARCH_RESULTS = 25;
 const MAX_ANNOTATIONS = 100;

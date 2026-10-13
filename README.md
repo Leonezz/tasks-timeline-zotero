@@ -38,6 +38,11 @@ and edits made in the timeline are written back to the notes.
   years and tags are always available to it; abstracts, annotations and full
   text are only shared with your AI provider if you allow them in
   Settings → Zotero (all off by default).
+- It can create tasks about a specific item (child notes), and turn to-do
+  annotations (TODO, `[ ]`, 待办 …, or a keyword) into tasks. For the
+  latter you review the proposals in a dialog and pick which to create;
+  nothing is written until you confirm, and annotations that already became
+  tasks are skipped.
 - Voice input starts disabled: Zotero's engine has no browser speech
   recognition, so only the OpenAI/Gemini transcription providers can work.
 

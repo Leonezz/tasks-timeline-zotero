@@ -1,10 +1,19 @@
-import { Component, useMemo, useSyncExternalStore } from "react";
+import {
+  Component,
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { TasksTimelineApp } from "@tasks-timeline/components";
 import type { Task } from "@tasks-timeline/components";
 import { BridgeSettingsRepository } from "./BridgeSettingsRepository";
 import { ZoteroSettingsTab } from "./ZoteroSettingsTab";
 import { zoteroToolSpecs } from "./zoteroTools";
+import { PlanReviewDialog } from "./PlanReviewDialog";
+import type { PendingReview } from "./PlanReviewDialog";
+import type { PlanForReview } from "../shared/uiContract";
 import type {
   AiBridge,
   SettingsBridge,
@@ -105,7 +114,24 @@ function ZoteroTimeline({
     () => new BridgeSettingsRepository(settings),
     [settings],
   );
-  const aiExtraTools = useMemo(() => zoteroToolSpecs(ai), [ai]);
+  const [review, setReview] = useState<PendingReview | null>(null);
+  const reviewPlan = useCallback(
+    (plan: PlanForReview) =>
+      new Promise<number[] | null>((resolve) =>
+        setReview({
+          plan,
+          resolve: (selected) => {
+            setReview(null);
+            resolve(selected);
+          },
+        }),
+      ),
+    [],
+  );
+  const aiExtraTools = useMemo(
+    () => zoteroToolSpecs(ai, reviewPlan),
+    [ai, reviewPlan],
+  );
   const customSettingsTabs = useMemo(
     () => [
       {
@@ -123,22 +149,25 @@ function ZoteroTimeline({
     );
 
   return (
-    <TasksTimelineApp
-      tasks={tasks}
-      settingsRepository={settingsRepository}
-      customSettingsTabs={customSettingsTabs}
-      aiSystemPrompt={ai.systemPrompt()}
-      aiExtraTools={aiExtraTools}
-      systemInDarkMode={systemInDarkMode}
-      onTaskAdded={(task) => report(taskActions.addTask(task))}
-      onTaskUpdated={(task, previous) =>
-        report(taskActions.updateTask(task, previous))
-      }
-      onTaskDeleted={(taskId, previous) =>
-        report(taskActions.deleteTask(taskId, previous))
-      }
-      onItemClick={(task) => report(taskActions.revealTask(task))}
-    />
+    <>
+      <TasksTimelineApp
+        tasks={tasks}
+        settingsRepository={settingsRepository}
+        customSettingsTabs={customSettingsTabs}
+        aiSystemPrompt={ai.systemPrompt()}
+        aiExtraTools={aiExtraTools}
+        systemInDarkMode={systemInDarkMode}
+        onTaskAdded={(task) => report(taskActions.addTask(task))}
+        onTaskUpdated={(task, previous) =>
+          report(taskActions.updateTask(task, previous))
+        }
+        onTaskDeleted={(taskId, previous) =>
+          report(taskActions.deleteTask(taskId, previous))
+        }
+        onItemClick={(task) => report(taskActions.revealTask(task))}
+      />
+      {review && <PlanReviewDialog review={review} />}
+    </>
   );
 }
 

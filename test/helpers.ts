@@ -78,3 +78,54 @@ export async function removePluginLogins() {
     else logins.removeLogin(login);
   }
 }
+
+// Smallest file Zotero recognizes as a PDF; annotations don't need real pages.
+export const MINIMAL_PDF =
+  "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+  "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+  "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\n" +
+  "trailer<</Root 1 0 R>>\n%%EOF\n";
+
+export async function importFile(
+  name: string,
+  contents: string,
+  parentItemID: number,
+): Promise<Zotero.Item> {
+  const path = PathUtils.join(PathUtils.tempDir, name);
+  await IOUtils.writeUTF8(path, contents);
+  const attachment = await Zotero.Attachments.importFromFile({
+    file: path,
+    parentItemID,
+  });
+  await IOUtils.remove(path);
+  return attachment;
+}
+
+/** A journal article with a PDF carrying the given annotations. */
+export async function createAnnotatedPaper(
+  title: string,
+  annotations: { text?: string; comment?: string; page?: string }[],
+): Promise<{ paper: Zotero.Item; pdf: Zotero.Item }> {
+  const paper = new Zotero.Item("journalArticle");
+  paper.libraryID = Zotero.Libraries.userLibraryID;
+  paper.setField("title", title);
+  await paper.saveTx({ skipSelect: true } as any);
+  const pdf = await importFile(`${paper.key}.pdf`, MINIMAL_PDF, paper.id);
+  for (const [index, a] of annotations.entries()) {
+    const annotation = new Zotero.Item("annotation") as any;
+    annotation.libraryID = pdf.libraryID;
+    annotation.parentID = pdf.id;
+    annotation.annotationType = a.text ? "highlight" : "note";
+    annotation.annotationText = a.text ?? "";
+    annotation.annotationComment = a.comment ?? "";
+    annotation.annotationColor = "#ffd400";
+    annotation.annotationPageLabel = a.page ?? "1";
+    annotation.annotationSortIndex = `0000${index}|000000|00000`;
+    annotation.annotationPosition = JSON.stringify({
+      pageIndex: 0,
+      rects: [[10, 10 + index * 20, 50, 20 + index * 20]],
+    });
+    await annotation.saveTx();
+  }
+  return { paper, pdf };
+}

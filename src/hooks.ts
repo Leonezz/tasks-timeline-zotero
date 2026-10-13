@@ -47,7 +47,7 @@ async function onStartup() {
       addon.data.taskStore,
       getTaskTag,
     );
-    addon.data.aiBridge = createAiBridge();
+    addon.data.aiBridge = createAiBridge(addon.data.taskMutations);
     await addon.data.taskStore.start();
     addon.data.taskTagObserver = Zotero.Prefs.registerObserver(
       `${config.prefsPrefix}.taskTag`,

@@ -115,21 +115,30 @@ export class ZoteroTaskMutations implements TaskActions {
     await win.ZoteroPane.selectItem(note.id);
   };
 
-  /** Creates a child task note for an item; returns the new note. */
-  async addTaskForItem(item: Zotero.Item): Promise<Zotero.Item> {
+  /**
+   * Creates a child task note for an item; returns the new note. Without a
+   * title the note is called "Read: <item title>".
+   */
+  async addTaskForItem(
+    item: Zotero.Item,
+    fields: Partial<Omit<Task, "id">> = {},
+  ): Promise<Zotero.Item> {
     if (!item.isRegularItem()) {
       throw new Error(getString("error-task-parent-type"));
     }
     return this.createTaskNote(
       item.libraryID,
       {
-        id: "",
-        title: getString("task-for-item-title", {
-          args: { title: item.getDisplayTitle() },
-        }),
         status: "todo",
         priority: "medium",
         tags: [],
+        ...fields,
+        id: "",
+        title:
+          fields.title ??
+          getString("task-for-item-title", {
+            args: { title: item.getDisplayTitle() },
+          }),
       },
       item.id,
     );

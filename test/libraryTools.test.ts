@@ -1,5 +1,6 @@
 import { assert } from "chai";
 import { config } from "../package.json";
+import { importFile, MINIMAL_PDF } from "./helpers";
 
 const PREFS = config.prefsPrefix;
 
@@ -38,21 +39,6 @@ describe("library tools", function () {
     Zotero.Prefs.set(`${PREFS}.aiReadAnnotations`, annotations, true);
     Zotero.Prefs.set(`${PREFS}.aiReadFulltext`, fulltext, true);
   };
-
-  async function importFile(
-    name: string,
-    contents: string,
-    parentItemID: number,
-  ) {
-    const path = PathUtils.join(PathUtils.tempDir, name);
-    await IOUtils.writeUTF8(path, contents);
-    const attachment = await Zotero.Attachments.importFromFile({
-      file: path,
-      parentItemID,
-    });
-    await IOUtils.remove(path);
-    return attachment;
-  }
 
   before(async function () {
     // @ts-expect-error - Plugin instance is not typed

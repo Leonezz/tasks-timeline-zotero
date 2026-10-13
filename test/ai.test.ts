@@ -2,6 +2,7 @@ import { assert } from "chai";
 import { config } from "../package.json";
 import {
   completion,
+  createAnnotatedPaper,
   delay,
   openTimeline,
   press,
@@ -260,6 +261,61 @@ describe("AI agent in the sidebar", function () {
       requests[0].tools.map((t: any) => t.function.name),
       "get_current_context",
     );
+  });
+
+  it("lets the user review tasks proposed from annotations", async function () {
+    Zotero.Prefs.set(`${PREFS}.aiReadAnnotations`, true, true);
+    try {
+      const { paper } = await createAnnotatedPaper("Annotated (agent test)", [
+        { text: "dropout rate", comment: "TODO tune dropout", page: "7" },
+        { comment: "TODO check appendix B", page: "9" },
+      ]);
+      created.push(paper);
+      const tasksOf = () =>
+        Zotero.Items.get(paper.getNotes()).filter((n) => n.hasTag("#task"));
+
+      // Cancel: nothing is written and the model is told.
+      nextToolCall = {
+        name: "tasks_from_annotations",
+        args: { ref: `${paper.libraryID}/${paper.key}` },
+      };
+      await ask("Make tasks from my TODO annotations");
+      const dialog = () =>
+        doc.querySelector('[role="dialog"][aria-label^="Create tasks for"]');
+      await waitFor(dialog, "review dialog");
+      (
+        Array.from(dialog()!.querySelectorAll("button")).find(
+          (b) => b.textContent === "Cancel",
+        ) as HTMLButtonElement
+      ).click();
+      await waitFor(() => requests.length >= 2, "cancel round trip");
+      assert.match(requests[1].messages.at(-1).content, /Cancelled by user/);
+      assert.lengthOf(tasksOf(), 0);
+
+      // Untick one proposal, create the other.
+      requests = [];
+      await ask("Try again");
+      await waitFor(dialog, "review dialog");
+      (
+        dialog()!.querySelector(
+          'input[aria-label="check appendix B"]',
+        ) as HTMLInputElement
+      ).click();
+      await delay(100);
+      const create = Array.from(dialog()!.querySelectorAll("button")).find(
+        (b) => b.textContent === "Create 1 task",
+      ) as HTMLButtonElement;
+      assert.exists(create, '"Create 1 task" after unticking one');
+      create.click();
+      await waitFor(() => requests.length >= 2, "create round trip");
+      assert.deepEqual(
+        tasksOf().map((n) => n.getNoteTitle()),
+        ["tune dropout"],
+      );
+      assert.notExists(dialog());
+    } finally {
+      Zotero.Prefs.set(`${PREFS}.aiReadAnnotations`, false, true);
+    }
   });
 
   it("asks before deleting, and trashes the note when confirmed", async function () {

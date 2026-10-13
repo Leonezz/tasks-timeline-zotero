@@ -6,9 +6,20 @@ the Obsidian plugin through
 
 Requires Zotero 10.
 
-## Status
+## Install
 
-M2: the sidebar shows every task note from My Library and group libraries,
+1. Download the latest `tasks-timeline.xpi` from
+   [Releases](https://github.com/Leonezz/tasks-timeline-zotero/releases/latest).
+2. In Zotero 10: Tools → Plugins → gear menu → Install Plugin From File…,
+   then pick the downloaded file.
+3. Open the timeline with the toolbar button next to the search box (or
+   View → Tasks Timeline Sidebar).
+
+Installed copies update themselves when a new version is released.
+
+## Features
+
+The sidebar shows every task note from My Library and group libraries,
 and edits made in the timeline are written back to the notes.
 
 - Toggle the sidebar with the toolbar button next to the search box or

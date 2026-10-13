@@ -5,3 +5,4 @@ pref("appSettings", "");
 pref("aiReadAbstracts", false);
 pref("aiReadAnnotations", false);
 pref("aiReadFulltext", false);
+pref("mcpEnabled", false);

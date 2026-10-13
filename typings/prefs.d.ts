@@ -14,6 +14,7 @@ declare namespace _ZoteroTypes {
       "aiReadAbstracts": boolean;
       "aiReadAnnotations": boolean;
       "aiReadFulltext": boolean;
+      "mcpEnabled": boolean;
     };
   }
 }

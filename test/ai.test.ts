@@ -131,10 +131,12 @@ describe("AI agent in the sidebar", function () {
 
   /** Sends a message and waits until the agent has finished its turn. */
   async function ask(text: string) {
-    const input = await waitFor(
-      () => doc.querySelector("input") as HTMLInputElement | null,
-      "AI input",
-    );
+    // The input is disabled while the agent works on the previous turn and
+    // ignores submissions then, as it does for a user.
+    const input = await waitFor(() => {
+      const el = doc.querySelector("input") as HTMLInputElement | null;
+      return el && !el.disabled ? el : null;
+    }, "AI input to be ready");
     const setter = Object.getOwnPropertyDescriptor(
       frameWin.HTMLInputElement.prototype,
       "value",
@@ -221,10 +223,36 @@ describe("AI agent in the sidebar", function () {
       requests[1].messages.slice(-2).map((m: any) => m.role),
       ["assistant", "tool"],
     );
+    // The agent learns the note's real id, so follow-up calls work.
+    assert.equal(JSON.parse(requests[1].messages.at(-1).content).id, task.id);
     assert.notInclude(
       Zotero.Prefs.get(`${PREFS}.appSettings`, true) as string,
       "test-key",
     );
+  });
+
+  it("tells the agent when a write fails instead of claiming success", async function () {
+    const note = await createTaskNote("Locked via AI");
+    const libraries = Zotero.Libraries as any;
+    const realGet = libraries.get;
+    libraries.get = (id: number) =>
+      id === note.libraryID
+        ? { libraryID: id, name: "Locked Group", editable: false }
+        : realGet.call(libraries, id);
+    try {
+      nextToolCall = {
+        name: "update_task",
+        args: { id: `${note.libraryID}/${note.key}`, title: "Renamed" },
+      };
+      await ask("Rename the locked task");
+      await waitFor(() => requests.length >= 2, "tool result round trip");
+      const toolResult = requests[1].messages.at(-1).content;
+      assert.include(toolResult, "Locked Group");
+      assert.notInclude(toolResult, '"success":true');
+      assert.include(note.getNote(), "Locked via AI");
+    } finally {
+      libraries.get = realGet;
+    }
   });
 
   it("lets the agent search the library and read an item", async function () {

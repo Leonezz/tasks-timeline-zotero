@@ -143,10 +143,14 @@ function ZoteroTimeline({
     [zoteroPrefs],
   );
   const systemInDarkMode = useSystemDarkMode(win);
-  const report = (promise: Promise<void>) =>
-    promise.catch((error: unknown) =>
-      onError(error instanceof Error ? error : new Error(String(error))),
-    );
+  // Show the failure in Zotero, then rethrow: the timeline (and its AI
+  // agent) must not treat a failed write as success.
+  const report = <T,>(promise: Promise<T>): Promise<T> =>
+    promise.catch((error: unknown) => {
+      const failure = error instanceof Error ? error : new Error(String(error));
+      onError(failure);
+      throw failure;
+    });
 
   return (
     <>
@@ -157,14 +161,21 @@ function ZoteroTimeline({
         aiSystemPrompt={ai.systemPrompt()}
         aiExtraTools={aiExtraTools}
         systemInDarkMode={systemInDarkMode}
-        onTaskAdded={(task) => report(taskActions.addTask(task))}
+        onTaskAdded={(task) =>
+          report(taskActions.addTask(task)).then((stored) =>
+            JSON.parse(JSON.stringify(stored)),
+          )
+        }
         onTaskUpdated={(task, previous) =>
           report(taskActions.updateTask(task, previous))
         }
         onTaskDeleted={(taskId, previous) =>
           report(taskActions.deleteTask(taskId, previous))
         }
-        onItemClick={(task) => report(taskActions.revealTask(task))}
+        onItemClick={(task) => {
+          // Not awaited by the timeline; the error was already shown.
+          report(taskActions.revealTask(task)).catch(() => undefined);
+        }}
       />
       {review && <PlanReviewDialog review={review} />}
     </>

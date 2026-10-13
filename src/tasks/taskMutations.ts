@@ -2,7 +2,7 @@ import type { Task } from "@tasks-timeline/components";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { applyTaskNoteContent, newTaskNoteHtml } from "./noteEditing";
-import { metadataLineFor, parseTaskId } from "./noteFormat";
+import { metadataLineFor, parseTaskId, taskIdFor } from "./noteFormat";
 import type { TaskActions } from "../shared/uiContract";
 import type { ZoteroTaskStore } from "./taskStore";
 
@@ -29,8 +29,18 @@ export class ZoteroTaskMutations implements TaskActions {
     private readonly taskTag: () => string,
   ) {}
 
-  addTask = async (task: Task): Promise<void> => {
-    await this.createTaskNote(Zotero.Libraries.userLibraryID, task);
+  /** Returns the stored task, whose id ("libraryID/KEY") differs from the input's. */
+  addTask = async (task: Task): Promise<Task> => {
+    const note = await this.createTaskNote(
+      Zotero.Libraries.userLibraryID,
+      task,
+    );
+    const id = taskIdFor(note.libraryID, note.key);
+    const stored = this.store.getTasks().find((t) => t.id === id);
+    if (!stored) {
+      throw new Error(`Created note ${id} isn't a task (is the task tag set?)`);
+    }
+    return stored;
   };
 
   updateTask = async (task: Task, previous: Task): Promise<void> => {

@@ -6,13 +6,17 @@ import type { HostTool, PreparedPlan } from "./libraryTools";
 import { zoteroSystemPrompt } from "./systemPrompt";
 import { createWriteTools } from "./writeTools";
 
-const PLAN_TTL_MS = 10 * 60 * 1000;
-
-export function createAiBridge(mutations: ZoteroTaskMutations): AiBridge {
-  const tools: HostTool[] = [
+/** Zotero tools shared by the sidebar agent and the MCP server. */
+export function createHostTools(mutations: ZoteroTaskMutations): HostTool[] {
+  return [
     ...createLibraryTools(getLibraryAccess),
     ...createWriteTools(mutations, getLibraryAccess),
   ];
+}
+
+const PLAN_TTL_MS = 10 * 60 * 1000;
+
+export function createAiBridge(tools: HostTool[]): AiBridge {
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
   const plans = new Map<string, { plan: PreparedPlan; expires: number }>();
 

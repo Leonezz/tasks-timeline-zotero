@@ -5,6 +5,7 @@ import type { ZoteroTaskStore } from "./tasks/taskStore";
 import type { ZoteroTaskMutations } from "./tasks/taskMutations";
 import type { ZoteroSettingsStore } from "./settings/settingsStore";
 import type { AiBridge } from "./shared/uiContract";
+import type { McpServer } from "./mcp/mcpServer";
 
 class Addon {
   public data: {
@@ -21,6 +22,8 @@ class Addon {
     settingsStore?: ZoteroSettingsStore;
     taskTagObserver?: symbol;
     aiBridge?: AiBridge;
+    mcpServer?: McpServer;
+    mcpObserver?: symbol;
   };
   public hooks: typeof hooks;
   public api: object;

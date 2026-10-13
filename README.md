@@ -46,6 +46,23 @@ and edits made in the timeline are written back to the notes.
 - Voice input starts disabled: Zotero's engine has no browser speech
   recognition, so only the OpenAI/Gemini transcription providers can work.
 
+## MCP (external AI agents)
+
+Settings → Zotero → "Allow MCP clients" serves the task and library tools to
+MCP clients on this computer, such as Claude Code or Claude Desktop, at
+`http://127.0.0.1:<Zotero port>/taskstimeline/mcp` (Streamable HTTP, JSON
+responses). It is off by default.
+
+- Every request needs the bearer token shown in the settings (stored in the
+  login manager; regenerating it locks out the old one immediately). Zotero
+  only accepts localhost requests and ignores requests from web pages.
+- Clients get the task tools that don't need confirmation and the library
+  tools, within the same read permissions as the sidebar assistant.
+  Deleting tasks, batch updates and turning annotations into tasks aren't
+  offered, since nobody is there to confirm them.
+- "Copy setup command" puts a ready-made `claude mcp add …` command on the
+  clipboard.
+
 ## Task notes
 
 A task is a Zotero note tagged `#task`:
@@ -67,6 +84,9 @@ Focus on section 3.                       ← description
 
 - `src/index.ts`, `src/hooks.ts`: plugin core in the bootstrap sandbox
 - `src/modules/`: Zotero integration (sidebar, menu)
+- `src/mcp/`: MCP server — `protocol.ts` (pure JSON-RPC handling, unit
+  tested), `mcpTools.ts` (which tools are offered), `mcpServer.ts` (endpoint,
+  token auth)
 - `src/ai/`: the agent's Zotero context — system prompt and read-only
   library tools (`libraryTools.ts`), exposed to the UI through `aiBridge.ts`
 - `src/tasks/`: task notes — `noteFormat.ts` (pure note ⇄ task mapping, unit

@@ -6,6 +6,7 @@
 
 import type { AppSettings, Task } from "@tasks-timeline/components";
 import type { HostToolDescriptor, LibraryAccess } from "../ai/libraryTools";
+import type { McpStatus } from "../mcp/mcpServer";
 import { config } from "../../package.json";
 
 /** Dispatched by the UI bundle on its frame element once it can be mounted. */
@@ -20,7 +21,8 @@ export interface TaskSource {
 
 /** Writes from the timeline back to Zotero. Rejections are shown to the user. */
 export interface TaskActions {
-  addTask: (task: Task) => Promise<void>;
+  /** Resolves with the stored task (its id is the note's "libraryID/KEY"). */
+  addTask: (task: Task) => Promise<Task>;
   updateTask: (task: Task, previous: Task) => Promise<void>;
   deleteTask: (taskId: string, previous: Task) => Promise<void>;
   /** Shows the task's note in the library. */
@@ -40,6 +42,10 @@ export interface ZoteroPrefsBridge {
   setTaskTag: (tag: string) => void;
   getLibraryAccess: () => LibraryAccess;
   setLibraryAccess: (access: Partial<LibraryAccess>) => void;
+  getMcpStatus: () => McpStatus;
+  setMcpEnabled: (enabled: boolean) => Promise<McpStatus>;
+  regenerateMcpToken: () => Promise<McpStatus>;
+  copyToClipboard: (text: string) => void;
 }
 
 export interface AiBridge {

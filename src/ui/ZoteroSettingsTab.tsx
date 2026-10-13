@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { LibraryAccess } from "../ai/libraryTools";
 import type { ZoteroPrefsBridge } from "../shared/uiContract";
+import { McpSettings } from "./McpSettings";
 
 const ACCESS_OPTIONS: { key: keyof LibraryAccess; label: string }[] = [
   { key: "abstracts", label: "Abstracts" },
@@ -84,6 +85,7 @@ export function ZoteroSettingsTab({ prefs }: { prefs: ZoteroPrefsBridge }) {
           </label>
         ))}
       </fieldset>
+      <McpSettings prefs={prefs} />
     </div>
   );
 }

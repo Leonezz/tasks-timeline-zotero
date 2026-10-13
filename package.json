@@ -31,7 +31,7 @@
     "test:unit": "vitest run"
   },
   "dependencies": {
-    "@tasks-timeline/components": "^0.6.0",
+    "@tasks-timeline/components": "^0.8.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zotero-plugin-toolkit": "^6.0.0"

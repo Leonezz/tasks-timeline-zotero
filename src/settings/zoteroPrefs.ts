@@ -1,5 +1,6 @@
 import { getPref, setPref } from "../utils/prefs";
 import type { LibraryAccess } from "../ai/libraryTools";
+import type { McpServer } from "../mcp/mcpServer";
 import type { ZoteroPrefsBridge } from "../shared/uiContract";
 
 export const getTaskTag = (): string => getPref("taskTag");
@@ -11,7 +12,7 @@ export const getLibraryAccess = (): LibraryAccess => ({
   fulltext: getPref("aiReadFulltext"),
 });
 
-export function createZoteroPrefsBridge(): ZoteroPrefsBridge {
+export function createZoteroPrefsBridge(mcp: McpServer): ZoteroPrefsBridge {
   return {
     getTaskTag,
     setTaskTag: (tag: string) => {
@@ -33,5 +34,25 @@ export function createZoteroPrefsBridge(): ZoteroPrefsBridge {
         setPref("aiReadFulltext", access.fulltext);
       }
     },
+    getMcpStatus: () => mcp.status(),
+    setMcpEnabled: async (enabled) => {
+      // The pref observer starts or stops the server.
+      setPref("mcpEnabled", enabled);
+      await syncMcpServer(mcp);
+      return mcp.status();
+    },
+    regenerateMcpToken: async () => {
+      await mcp.regenerateToken();
+      return mcp.status();
+    },
+    copyToClipboard: (text) =>
+      Zotero.Utilities.Internal.copyTextToClipboard(text),
   };
+}
+
+/** Starts or stops the MCP server to match the mcpEnabled pref. */
+export async function syncMcpServer(mcp: McpServer): Promise<void> {
+  const wanted = getPref("mcpEnabled");
+  if (wanted && !mcp.running) await mcp.start();
+  if (!wanted && mcp.running) mcp.stop();
 }

@@ -489,7 +489,7 @@ describe("repairLegacyRecurrence (rules v0.8.0 wrote with a start date)", () => 
       repairLegacyRecurrence(
         `[ ] 🔁 DTSTART:${start}RRULE:FREQ=WEEKLY;INTERVAL=2 ⏫`,
       ),
-    ).toEqual({ text: "[ ] 🛫 2026-10-16 🔁 every 2 weeks ⏫" });
+    ).toEqual({ text: "[ ] 🛫 2026-10-16 🔁 every 2 weeks on Friday ⏫" });
   });
 
   it("reads a floating start date as written", () => {

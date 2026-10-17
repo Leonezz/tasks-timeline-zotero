@@ -102,9 +102,16 @@ Focus on section 3.                       ← description
   task editor and the AI tools refuse rules a note can't hold.
 - Rules that version 0.1.0 saved with a start date
   (`🔁 DTSTART:… RRULE:…`) are repaired the next time the task is edited:
-  the start date moves to 🛫 and the rule is written as text. If that isn't
-  possible (for example the note already has a different 🛫 date), the edit
-  is refused with instructions for fixing the note by hand.
+  the start date moves to 🛫 and the rule is written as text, with the day
+  the rule took from its start date written out (`every week on Friday`,
+  `every month on the 16th`). Text after the rule stays as notes. A rule is
+  only repaired when the repaired note recurs on the same days. Otherwise
+  the task still shows as recurring, but every edit and completion is
+  refused with instructions for fixing the note by hand. This happens when
+  the note already has a different 🛫 date, the rule ends after a count
+  (`COUNT`), it repeats every few weeks/months counted from a start date
+  the due date doesn't line up with, or it uses parts a text rule can't
+  hold.
 - Other tags on the note become task tags. The library name is the category.
 - Child notes are tasks about their parent item.
 - The plugin never edits item metadata such as `date` or `Extra`.

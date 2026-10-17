@@ -17,7 +17,12 @@ import {
   taskToMarkdown,
 } from "@tasks-timeline/components/tasks-format";
 import type { Priority, Task } from "@tasks-timeline/components";
-import { repairLegacyRecurrence } from "./legacyRecurrence";
+import {
+  hasLegacyRule,
+  repairLegacyRecurrence,
+  withoutLegacyRule,
+} from "./legacyRecurrence";
+import type { NoteDates } from "./legacyRecurrence";
 
 export { repairLegacyRecurrence } from "./legacyRecurrence";
 
@@ -114,7 +119,11 @@ function setFields(fields: Fields): Fields {
   ) as Fields;
 }
 
-function parseLine(line: string): ParsedLine {
+/**
+ * Reads a block's line. `legacyRule` is the rule of a 0.8 rule that can't be
+ * repaired, taken out of the line: the task still reads as recurring.
+ */
+function parseLine(line: string, legacyRule?: string): ParsedLine {
   const parsed = parseTasksFormatItem({
     id: "",
     title: line,
@@ -122,7 +131,10 @@ function parseLine(line: string): ParsedLine {
     priority: "medium",
     tags: [],
   });
-  const fields = setFields(fieldsOf(parsed));
+  const fields = setFields({
+    ...fieldsOf(parsed),
+    ...(legacyRule ? { recurringInterval: legacyRule } : {}),
+  });
   return {
     text: parsed.title.trim(),
     fields,
@@ -146,25 +158,81 @@ interface MetadataBlock {
   line: ParsedLine;
 }
 
-/** Reads the optional metadata block; returns null when block 1 is description. */
-function parseMetadataBlock(block: string | undefined): MetadataBlock | null {
-  if (block === undefined) return null;
-  const text = repairLegacyRecurrence(block).text;
+/** The metadata block in already-repaired text, or null for description. */
+function metadataOf(text: string, legacyRule?: string): MetadataBlock | null {
   const checkbox = CHECKBOX_PREFIX.exec(text);
   if (checkbox) {
     const body = text.slice(checkbox[0].length);
-    return { marker: checkbox[1], body, line: parseLine(body) };
+    return { marker: checkbox[1], body, line: parseLine(body, legacyRule) };
   }
-  const line = parseLine(text);
+  const line = parseLine(text, legacyRule);
   // Only a line made entirely of metadata counts; otherwise it is prose.
   return line.hasMetadata && line.text === "" ? { body: text, line } : null;
 }
 
+/**
+ * The dates a note's task has (block 1 wins, as on reading), with any 0.8
+ * rule left out. They say where a repaired rule's next date counts from.
+ */
+function noteDates(title: string, metadata: string | undefined): NoteDates {
+  // Only a note with a 0.8 rule needs them; skip the parsing for the rest
+  if (!hasLegacyRule(title) && !hasLegacyRule(metadata ?? "")) return {};
+  const titleFields = parseLine(withoutLegacyRule(title)).fields;
+  const metadataFields =
+    metadata === undefined
+      ? undefined
+      : metadataOf(withoutLegacyRule(metadata))?.line.fields;
+  const fields = { ...titleFields, ...metadataFields };
+  return {
+    dueAt: fields.dueAt,
+    scheduledAt: fields.scheduledAt,
+    startAt: fields.startAt,
+  };
+}
+
+interface ReadBlock {
+  text: string;
+  /** For a 0.8 rule that can't be repaired: the rule the task carries. */
+  legacyRule?: string;
+  /** Why it can't be repaired and how to fix the note in Zotero. */
+  legacyError?: string;
+}
+
+/**
+ * A block with a 0.8 rule repaired. One that can't be repaired is read with
+ * the rule taken out and carried separately, so the task stays recurring
+ * and marked instead of reading as a one-off task with the rule as text.
+ */
+function readBlock(block: string, dates?: NoteDates): ReadBlock {
+  const repair = repairLegacyRecurrence(block, dates);
+  if (!repair.error) return { text: repair.text };
+  if (!repair.unrepaired) throw new Error(repair.error);
+  return {
+    text: repair.unrepaired.text,
+    legacyRule: repair.unrepaired.recurringInterval,
+    legacyError: repair.error,
+  };
+}
+
+/** Reads the optional metadata block; returns null when block 1 is description. */
+function parseMetadataBlock(
+  block: string | undefined,
+  dates?: NoteDates,
+): (MetadataBlock & { legacyError?: string }) | null {
+  if (block === undefined) return null;
+  const read = readBlock(block, dates);
+  const metadata = metadataOf(read.text, read.legacyRule);
+  return metadata && { ...metadata, legacyError: read.legacyError };
+}
+
 export function noteToTask(source: TaskNoteSource, taskTag: string): Task {
   const [titleBlock = "", ...rest] = source.blocks;
-  const titleLine = parseLine(repairLegacyRecurrence(titleBlock).text);
-  const metadata = parseMetadataBlock(rest[0]);
+  const dates = noteDates(titleBlock, rest[0]);
+  const titleRead = readBlock(titleBlock, dates);
+  const titleLine = parseLine(titleRead.text, titleRead.legacyRule);
+  const metadata = parseMetadataBlock(rest[0], dates);
   const description = (metadata ? rest.slice(1) : rest).join("\n");
+  const legacyError = titleRead.legacyError ?? metadata?.legacyError;
 
   const fields = { ...titleLine.fields, ...metadata?.line.fields };
   const status = metadata?.marker
@@ -187,6 +255,8 @@ export function noteToTask(source: TaskNoteSource, taskTag: string): Task {
   if (fields.createdAt) extra.createdExplicit = "true";
   if (fields.scheduledAt) extra.scheduledAt = fields.scheduledAt;
   if (lineNotes) extra.lineNotes = lineNotes;
+  // Writes and completions of this task fail with this message.
+  if (legacyError) extra.legacyRecurrenceError = legacyError;
   if (source.parent) {
     extra.parentKey = source.parent.key;
     extra.parentTitle = source.parent.title;
@@ -265,8 +335,8 @@ function writeLine(
 }
 
 /** The block text with a 0.8 rule repaired; throws when it can't be. */
-function writableBlock(block: string): string {
-  const repair = repairLegacyRecurrence(block);
+function writableBlock(block: string, dates: NoteDates): string {
+  const repair = repairLegacyRecurrence(block, dates);
   if (repair.error) throw new Error(repair.error);
   return repair.text;
 }
@@ -304,12 +374,13 @@ export function writeTaskBlocks(
     };
   }
 
-  const titleText = writableBlock(current.title);
+  const dates = noteDates(current.title, current.metadata);
+  const titleText = writableBlock(current.title, dates);
   const titleLine = parseLine(titleText);
   const metadata =
     current.metadata === undefined
       ? null
-      : parseMetadataBlock(writableBlock(current.metadata));
+      : metadataOf(writableBlock(current.metadata, dates));
   const inMetadata = metadata?.line.fields ?? {};
 
   const titleFields: Record<string, unknown> = {};

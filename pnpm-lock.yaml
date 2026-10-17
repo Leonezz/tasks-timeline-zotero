@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@tasks-timeline/components':
-        specifier: ^0.8.0
-        version: 0.8.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)
+        specifier: ^0.9.0
+        version: 0.9.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -51,6 +51,9 @@ importers:
       prettier:
         specifier: ^3.9.10
         version: 3.9.10
+      rrule:
+        specifier: 2.8.1
+        version: 2.8.1
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -933,8 +936,8 @@ packages:
   '@swc/types@0.1.28':
     resolution: {integrity: sha512-V6Mnml8v09QALx6K0elJ7o9K/MkVDtW3t6L+7Ou/JcWtb3xwId2AH4FeOceySd2JaO87IMw4+6vSZxLm34LPbw==}
 
-  '@tasks-timeline/components@0.8.0':
-    resolution: {integrity: sha512-B+eX/dSoTiNhRRZ4oXrOMhzcIUHwOU4SfTWUiKpHdoRb/505H54tHdYT/eXgskdNnGoVnWGaTiqW36CjG5a9KA==}
+  '@tasks-timeline/components@0.9.0':
+    resolution: {integrity: sha512-dXf/R3DcNme6BWDxs7Nqlkayi79GTlTISn7NOhOng7TaAK/6KH7RcLzPfI6FnVT+XjvvMSYoiNkjPt0h6dRM/g==}
     peerDependencies:
       react: ^18.3.1 || ^19.0.0
       react-dom: ^18.3.1 || ^19.0.0
@@ -3121,7 +3124,7 @@ snapshots:
     dependencies:
       '@swc/counter': 0.1.3
 
-  '@tasks-timeline/components@0.8.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)':
+  '@tasks-timeline/components@0.9.0(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(zod@4.6.7)':
     dependencies:
       '@ai-sdk/anthropic': 3.0.129(zod@4.6.7)
       '@ai-sdk/google': 3.0.131(zod@4.6.7)

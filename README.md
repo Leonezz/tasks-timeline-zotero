@@ -26,8 +26,15 @@ and edits made in the timeline are written back to the notes.
   View → Tasks Timeline Sidebar.
 - New tasks from the timeline go to My Library. Right-click an item →
   "Add Task for This Item" creates a child task note and opens it.
+- Completing a recurring task creates its next occurrence next to it: in the
+  same library, under the same item, with its ⏳ date moved and the notes
+  after its fields kept.
 - Edits change only the title line, the metadata line, the tags, and the
   description when you edit it; the rest of the note keeps its formatting.
+  Within those lines, only what changed is rewritten: fields the timeline
+  doesn't show (🏁 🆔 ⛔), notes and links after the fields, ⏰ reminders and
+  block ids stay as written, and a line the edit doesn't change keeps its
+  formatting.
 - Edits and moving a task to the trash can be undone with Zotero's Undo.
   Zotero declines an undo if the note was saved again since (for example by
   an open note editor reformatting it).
@@ -55,7 +62,8 @@ and edits made in the timeline are written back to the notes.
   nothing is written until you confirm, and annotations that already became
   tasks are skipped.
 - Voice input starts disabled: Zotero's engine has no browser speech
-  recognition, so only the OpenAI/Gemini transcription providers can work.
+  recognition, so Settings → AI shows the Browser voice provider as
+  unavailable; choose the OpenAI or Gemini transcription provider.
 
 ## MCP (external AI agents)
 
@@ -86,7 +94,24 @@ Focus on section 3.                       ← description
 
 - Metadata uses the Obsidian Tasks syntax: `[ ]` todo, `[/]` doing, `[x]`
   done, `[-]` cancelled; 📅 due, 🛫 start, ⏳ scheduled, ➕ created, ✅ done,
-  🔁 recurrence, ⏫/🔼/🔽 priority. Metadata typed on the title line also works.
+  ❌ cancelled, 🔁 recurrence, ⏫/🔼/🔽 priority, 🏁 on completion, 🆔 id,
+  ⛔ depends on. Metadata typed on the title line also works, and stays
+  there when the task is edited.
+- Recurrence is stored as Obsidian Tasks text (`🔁 every week on Monday`).
+  A rule can't hold its own start date; use the task's 🛫 start date. The
+  task editor and the AI tools refuse rules a note can't hold.
+- Rules that version 0.1.0 saved with a start date
+  (`🔁 DTSTART:… RRULE:…`) are repaired the next time the task is edited:
+  the start date moves to 🛫 and the rule is written as text, with the day
+  the rule took from its start date written out (`every week on Friday`,
+  `every month on the 16th`). Text after the rule stays as notes. A rule is
+  only repaired when the repaired note recurs on the same days. Otherwise
+  the task still shows as recurring, but every edit and completion is
+  refused with instructions for fixing the note by hand. This happens when
+  the note already has a different 🛫 date, the rule ends after a count
+  (`COUNT`), it repeats every few weeks/months counted from a start date
+  the due date doesn't line up with, or it uses parts a text rule can't
+  hold.
 - Other tags on the note become task tags. The library name is the category.
 - Child notes are tasks about their parent item.
 - The plugin never edits item metadata such as `date` or `Extra`.

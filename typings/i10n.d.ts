@@ -8,6 +8,7 @@ export type FluentMessageId =
   | 'error-load-notes'
   | 'error-settings-load'
   | 'error-task-missing'
+  | 'error-task-parent-missing'
   | 'error-task-parent-type'
   | 'error-timeline'
   | 'menu-add-task-for-item'

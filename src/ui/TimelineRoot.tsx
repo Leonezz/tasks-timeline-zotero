@@ -12,6 +12,7 @@ import { BridgeSettingsRepository } from "./BridgeSettingsRepository";
 import { ZoteroSettingsTab } from "./ZoteroSettingsTab";
 import { zoteroToolSpecs } from "./zoteroTools";
 import { PlanReviewDialog } from "./PlanReviewDialog";
+import { timelineAppProps } from "./timelineAppProps";
 import type { PendingReview } from "./PlanReviewDialog";
 import type { PlanForReview } from "../shared/uiContract";
 import type {
@@ -143,39 +144,20 @@ function ZoteroTimeline({
     [zoteroPrefs],
   );
   const systemInDarkMode = useSystemDarkMode(win);
-  // Show the failure in Zotero, then rethrow: the timeline (and its AI
-  // agent) must not treat a failed write as success.
-  const report = <T,>(promise: Promise<T>): Promise<T> =>
-    promise.catch((error: unknown) => {
-      const failure = error instanceof Error ? error : new Error(String(error));
-      onError(failure);
-      throw failure;
-    });
 
   return (
     <>
       <TasksTimelineApp
-        tasks={tasks}
-        settingsRepository={settingsRepository}
-        customSettingsTabs={customSettingsTabs}
-        aiSystemPrompt={ai.systemPrompt()}
-        aiExtraTools={aiExtraTools}
-        systemInDarkMode={systemInDarkMode}
-        onTaskAdded={(task) =>
-          report(taskActions.addTask(task)).then((stored) =>
-            JSON.parse(JSON.stringify(stored)),
-          )
-        }
-        onTaskUpdated={(task, previous) =>
-          report(taskActions.updateTask(task, previous))
-        }
-        onTaskDeleted={(taskId, previous) =>
-          report(taskActions.deleteTask(taskId, previous))
-        }
-        onItemClick={(task) => {
-          // Not awaited by the timeline; the error was already shown.
-          report(taskActions.revealTask(task)).catch(() => undefined);
-        }}
+        {...timelineAppProps({
+          tasks,
+          settingsRepository,
+          customSettingsTabs,
+          ai,
+          aiExtraTools,
+          systemInDarkMode,
+          taskActions,
+          onError,
+        })}
       />
       {review && <PlanReviewDialog review={review} />}
     </>

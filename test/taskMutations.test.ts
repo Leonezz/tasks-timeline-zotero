@@ -112,7 +112,8 @@ describe("task mutations", function () {
     assert.include(html, '<div data-schema-version="9">');
     assert.equal(
       flat(html),
-      "<h1>New title</h1><p>[x] 📅 2026-10-20 ✅ 2026-10-13</p>" +
+      // The 📅 date stays where it was written; new fields go to line 2.
+      "<h1>New title 📅 2026-10-20</h1><p>[x] ✅ 2026-10-13</p>" +
         "<ul><li>keep <strong>this</strong></li></ul>",
     );
     assert.sameMembers(
@@ -137,7 +138,166 @@ describe("task mutations", function () {
     );
     assert.equal(
       flat(note.getNote()),
-      "<p>Desc task</p><p>[ ] 🔽 📅 2026-10-20</p><p>line one</p><p>line two</p>",
+      "<p>Desc task</p><p>[ ] 📅 2026-10-20 🔽</p><p>line one</p><p>line two</p>",
+    );
+  });
+
+  it("keeps fields and text the timeline doesn't show", async function () {
+    const note = await createNote(
+      "<h1>Read paper 📅 2026-10-20 see [[Garden]]</h1>" +
+        "<p>[ ] 🆔 abc ⛔ xyz 🏁 delete</p>",
+    );
+    const before = taskFor(note);
+    assert.include(before, { title: "Read paper", taskId: "abc" });
+    await mutations.updateTask(
+      {
+        ...before,
+        status: "done",
+        completedAt: "2026-10-13T09:00:00.000+08:00",
+      },
+      before,
+    );
+    assert.equal(
+      flat(note.getNote()),
+      "<h1>Read paper 📅 2026-10-20 see [[Garden]]</h1>" +
+        "<p>[x] 🆔 abc ⛔ xyz 🏁 delete ✅ 2026-10-13</p>",
+    );
+  });
+
+  it("keeps the markup of a line the edit doesn't change", async function () {
+    const note = await createNote(
+      '<h1>Read <a href="https://example.com/">the paper</a></h1>' +
+        "<p>[ ] 📅 2026-10-20</p>",
+    );
+    const before = taskFor(note);
+    await mutations.updateTask({ ...before, priority: "high" }, before);
+    assert.equal(
+      flat(note.getNote()),
+      '<h1>Read <a href="https://example.com/">the paper</a></h1>' +
+        "<p>[ ] 📅 2026-10-20 ⏫</p>",
+    );
+  });
+
+  it("writes the ❌ date of a cancelled task", async function () {
+    const note = await createNote("<p>Cancel me</p><p>[ ] 📅 2026-10-20</p>");
+    const before = taskFor(note);
+    await mutations.updateTask(
+      {
+        ...before,
+        status: "cancelled",
+        cancelledAt: "2026-10-17T10:00:00.000+08:00",
+      },
+      before,
+    );
+    assert.equal(
+      flat(note.getNote()),
+      "<p>Cancel me</p><p>[-] 📅 2026-10-20 ❌ 2026-10-17</p>",
+    );
+    assert.include(taskFor(note), { cancelledAt: "2026-10-17" });
+  });
+
+  // Tasks Timeline 0.1 (components 0.8) wrote a rule with a start date as
+  // "🔁 DTSTART:…" and "RRULE:…" separated by a line break.
+  it("repairs a rule an earlier version wrote with a start date", async function () {
+    const note = await createNote(
+      "<p>Water plants</p>" +
+        "<p>[ ] 📅 2026-10-20 🔁 DTSTART:20261016T000000\nRRULE:FREQ=WEEKLY;BYDAY=MO</p>",
+    );
+    const before = taskFor(note);
+    assert.include(before, {
+      startAt: "2026-10-16",
+      recurringInterval: "every week on Monday",
+    });
+    await mutations.updateTask({ ...before, priority: "high" }, before);
+    assert.equal(
+      flat(note.getNote()),
+      "<p>Water plants</p>" +
+        "<p>[ ] 📅 2026-10-20 🛫 2026-10-16 🔁 every week on Monday ⏫</p>",
+    );
+  });
+
+  it("explains how to fix an old rule it can't repair", async function () {
+    const html =
+      "<p>Water daily</p>" +
+      "<p>[ ] 🛫 2026-10-01 🔁 DTSTART:20261016T000000\nRRULE:FREQ=DAILY</p>";
+    const note = await createNote(html);
+    const before = taskFor(note);
+    let message = "";
+    await mutations
+      .updateTask({ ...before, priority: "high" }, before)
+      .catch((e: Error) => (message = e.message));
+    assert.include(message, "Zotero");
+    assert.notInclude(message, "line below");
+    assert.equal(note.getNote(), html);
+  });
+
+  it("creates the next occurrence next to the completed task", async function () {
+    const item = new Zotero.Item("journalArticle");
+    item.libraryID = Zotero.Libraries.userLibraryID;
+    item.setField("title", "Botany");
+    await item.saveTx({ skipSelect: true } as any);
+    created.push(item);
+    const note = new Zotero.Item("note");
+    note.libraryID = item.libraryID;
+    note.parentID = item.id;
+    // ➕ keeps the notes out of the rule: the parser's 🔁 field takes words,
+    // so "every week see" would be read as the rule. The next note drops ➕.
+    note.setNote(
+      "<p>Water plants weekly</p>" +
+        "<p>[ ] 📅 2026-10-20 ⏳ 2026-10-19 🔁 every week ➕ 2026-09-01 see [[Garden]]</p>",
+    );
+    note.addTag("#task");
+    await note.saveTx({ skipSelect: true } as any);
+    created.push(note);
+    await store.reload();
+
+    // What complete_task hands to addTask: dates moved, extra kept.
+    const current = taskFor(note);
+    const stored = await mutations.addTask({
+      ...current,
+      id: "ai-next",
+      createdAt: "2026-10-18T10:00:00.000+08:00",
+      dueAt: "2026-10-27",
+      extra: { ...current.extra, scheduledAt: "2026-10-26" },
+    });
+    const [libraryID, key] = stored.id.split("/");
+    const next = Zotero.Items.getByLibraryAndKey(Number(libraryID), key)!;
+    created.push(next);
+    assert.notEqual(next.id, note.id);
+    assert.equal(next.libraryID, item.libraryID);
+    assert.equal(next.parentID, item.id);
+    assert.equal(
+      next.getNote(),
+      "<h1>Water plants weekly</h1>" +
+        "<p>[ ] 🔁 every week 📅 2026-10-27 ⏳ 2026-10-26 see [[Garden]]</p>",
+    );
+  });
+
+  it("refuses the next occurrence when its item is in the trash", async function () {
+    const item = new Zotero.Item("journalArticle");
+    item.libraryID = Zotero.Libraries.userLibraryID;
+    item.setField("title", "Trashed paper");
+    await item.saveTx({ skipSelect: true } as any);
+    created.push(item);
+    const note = await mutations.addTaskForItem(item, {
+      title: "Weekly reading",
+      dueAt: "2026-10-20",
+      recurringInterval: "every week",
+    });
+    created.push(note);
+    const current = taskFor(note);
+    item.deleted = true;
+    await item.saveTx({ skipSelect: true } as any);
+
+    let message = "";
+    await mutations
+      .addTask({ ...current, id: "ai-next", dueAt: "2026-10-27" })
+      .catch((e: Error) => (message = e.message));
+    assert.isNotEmpty(message);
+    assert.notExists(
+      store
+        .getTasks()
+        .find((t: any) => t.title === "Weekly reading" && t.id !== current.id),
     );
   });
 

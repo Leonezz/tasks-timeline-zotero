@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
+import type { Task } from "@tasks-timeline/components";
 import {
   DEFAULT_TASK_TAG,
   isMetadataBlock,
   metadataLineFor,
   noteToTask,
   parseTaskId,
+  planNewTaskNote,
+  repairLegacyRecurrence,
   taskIdFor,
+  writeTaskBlocks,
 } from "../src/tasks/noteFormat";
 import type { TaskNoteSource } from "../src/tasks/noteFormat";
 
@@ -234,5 +238,416 @@ describe("metadataLineFor", () => {
       recurringInterval: "every week",
     });
     expect(reread.extra?.scheduledAt).toBe("2026-10-19");
+  });
+});
+
+/** Reads a note, applies an edit, and returns the blocks written back. */
+function edit(blocks: string[], change: (task: Task) => Task = (t) => t) {
+  const task = noteToTask(source({ blocks }), DEFAULT_TASK_TAG);
+  const [title = "", second] = blocks;
+  const metadata =
+    second !== undefined && isMetadataBlock(second) ? second : undefined;
+  return writeTaskBlocks(change(task), { title, metadata });
+}
+
+describe("noteToTask reads every Obsidian Tasks field", () => {
+  it("reads ❌ 🏁 🆔 ⛔ from the metadata line", () => {
+    const task = noteToTask(
+      source({
+        blocks: [
+          "T",
+          "[-] 📅 2026-10-20 ❌ 2026-10-17 🏁 delete 🆔 abc ⛔ xyz,uvw",
+        ],
+      }),
+      DEFAULT_TASK_TAG,
+    );
+    expect(task).toMatchObject({
+      status: "cancelled",
+      dueAt: "2026-10-20",
+      cancelledAt: "2026-10-17",
+      onCompletion: "delete",
+      taskId: "abc",
+      dependsOn: ["xyz", "uvw"],
+    });
+  });
+
+  it("keeps notes after the fields out of the title", () => {
+    const task = noteToTask(
+      source({ blocks: ["Read paper 📅 2026-10-20 see [[Garden]]"] }),
+      DEFAULT_TASK_TAG,
+    );
+    expect(task.title).toBe("Read paper");
+    expect(task.extra?.lineNotes).toBe("see [[Garden]]");
+  });
+
+  it("keeps ⏰ reminders and block ids out of the title", () => {
+    const task = noteToTask(
+      source({ blocks: ["Call mom ⏰ 2026-10-16 09:00 about birthday ^blk1"] }),
+      DEFAULT_TASK_TAG,
+    );
+    expect(task.title).toBe("Call mom about birthday");
+  });
+
+  it("collects text on the metadata line as notes", () => {
+    const task = noteToTask(
+      source({
+        blocks: ["T 📅 2026-10-20 a", "[ ] 🔽 📅 2026-10-21 see [[Garden]]"],
+      }),
+      DEFAULT_TASK_TAG,
+    );
+    expect(task.extra?.lineNotes).toBe("a see [[Garden]]");
+  });
+});
+
+describe("writeTaskBlocks round trips", () => {
+  const unchanged = [
+    ["Read paper 📅 2026-10-20 see [[Garden]]"],
+    ["T", "[ ] 📅 2026-10-20 🆔 abc ⛔ xyz 🏁 delete"],
+    ["T", "[-] 📅 2026-10-20 ❌ 2026-10-17"],
+    ["Call mom ⏰ 2026-10-16 09:00 about birthday", "[ ] 📅 2026-10-16"],
+    ["Water plants ^blk1", "[ ] 📅 2026-10-16"],
+    ["Water plants", "[ ] 🔁 every week📅 2026-10-16"],
+    ["Water plants 🔁 every day at 9:30", "[/] ⏳ 2026-10-16"],
+    ["T", "[x] 🔽 📅 2026-10-20 ✅ 2026-10-18 see [[Garden]]"],
+    ["T", "[ ] 📆 2026-10-20 ⏫"],
+    ["Pay rent #home 📅 2026-10-01", "[ ] 🛫 2026-09-28"],
+  ];
+  for (const blocks of unchanged) {
+    it(`writes ${JSON.stringify(blocks)} back byte for byte`, () => {
+      const written = edit(blocks);
+      expect(written.title).toBe(blocks[0]);
+      expect(written.metadataLine).toBe(blocks[1] ?? "[ ]");
+    });
+  }
+
+  it("keeps notes after the fields of the title when the date changes", () => {
+    const written = edit(["Read paper 📅 2026-10-20 see [[Garden]]"], (t) => ({
+      ...t,
+      dueAt: "2026-10-25",
+    }));
+    expect(written).toEqual({
+      title: "Read paper 📅 2026-10-25 see [[Garden]]",
+      metadataLine: "[ ]",
+    });
+  });
+
+  it("keeps 🆔 ⛔ 🏁 when a task is completed", () => {
+    const written = edit(
+      ["T", "[ ] 📅 2026-10-20 🆔 abc ⛔ xyz 🏁 delete"],
+      (t) => ({ ...t, status: "done", completedAt: "2026-10-18T09:00:00Z" }),
+    );
+    expect(written.title).toBe("T");
+    expect(written.metadataLine).toMatch(/^\[x\] 📅 2026-10-20 /);
+    for (const kept of ["🆔 abc", "⛔ xyz", "🏁 delete", "✅ 2026-10-18"]) {
+      expect(written.metadataLine).toContain(kept);
+    }
+  });
+
+  it("writes the ❌ date of a cancelled task", () => {
+    const written = edit(["T", "[ ] 📅 2026-10-20"], (t) => ({
+      ...t,
+      status: "cancelled",
+      cancelledAt: "2026-10-17T10:00:00+08:00",
+    }));
+    expect(written.metadataLine).toBe("[-] 📅 2026-10-20 ❌ 2026-10-17");
+  });
+
+  it("keeps the ⏰ reminder and block id when the title changes", () => {
+    const written = edit(
+      [
+        "Call mom ⏰ 2026-10-16 09:00 about birthday ^blk1",
+        "[ ] 📅 2026-10-16",
+      ],
+      (t) => ({ ...t, title: "Call dad about birthday" }),
+    );
+    expect(written.title).toContain("Call dad about birthday");
+    expect(written.title).toContain("⏰ 2026-10-16 09:00");
+    expect(written.title).toMatch(/ \^blk1$/);
+    expect(written.metadataLine).toBe("[ ] 📅 2026-10-16");
+  });
+
+  it("keeps text written on the metadata line", () => {
+    const written = edit(["T", "[ ] 📅 2026-10-20 see [[Garden]]"], (t) => ({
+      ...t,
+      dueAt: "2026-10-21",
+    }));
+    expect(written.metadataLine).toBe("[ ] 📅 2026-10-21 see [[Garden]]");
+  });
+
+  it("keeps a rule glued to the next field and text glued to a rule", () => {
+    const written = edit(
+      ["Water plants 🔁 every day at 9:30", "[ ] 🔁 every week📅 2026-10-16"],
+      (t) => ({ ...t, priority: "high" }),
+    );
+    expect(written.title).toBe("Water plants 🔁 every day at 9:30");
+    expect(written.metadataLine).toContain("🔁 every week📅 2026-10-16");
+    expect(written.metadataLine).toContain("⏫");
+  });
+
+  it("leaves the title block alone when only the metadata changes", () => {
+    const written = edit(
+      ["Read paper 📅 2026-10-20 see [[Garden]]", "[ ] ⏫"],
+      (t) => ({ ...t, priority: "low" }),
+    );
+    expect(written).toEqual({
+      title: "Read paper 📅 2026-10-20 see [[Garden]]",
+      metadataLine: "[ ] 🔽",
+    });
+  });
+
+  it("leaves the metadata block alone when only the title changes", () => {
+    const written = edit(
+      ["Old 📅 2026-10-20", "[ ] ⏫ 🆔 abc see [[Garden]]"],
+      (t) => ({ ...t, title: "New" }),
+    );
+    expect(written).toEqual({
+      title: "New 📅 2026-10-20",
+      metadataLine: "[ ] ⏫ 🆔 abc see [[Garden]]",
+    });
+  });
+
+  it("adds new fields to the metadata line", () => {
+    const written = edit(["Read paper"], (t) => ({
+      ...t,
+      priority: "high",
+      dueAt: "2026-10-20",
+    }));
+    expect(written).toEqual({
+      title: "Read paper",
+      metadataLine: "[ ] ⏫ 📅 2026-10-20",
+    });
+  });
+
+  it("removes a date from both blocks when the metadata line overrides it", () => {
+    const written = edit(["T 📅 2026-10-01", "[ ] 📅 2026-10-05"], (t) => ({
+      ...t,
+      dueAt: undefined,
+    }));
+    expect(written).toEqual({ title: "T", metadataLine: "[ ]" });
+  });
+
+  it("never writes Zotero tags onto the note's lines", () => {
+    const written = edit(["T", "[ ] 📅 2026-10-20"], (t) => ({
+      ...t,
+      tags: [{ id: "reading", name: "reading" }],
+    }));
+    expect(written).toEqual({ title: "T", metadataLine: "[ ] 📅 2026-10-20" });
+  });
+
+  it("re-reads as the edited task", () => {
+    const blocks = ["Read paper 📅 2026-10-20 see [[Garden]]", "[ ] 🆔 abc"];
+    const written = edit(blocks, (t) => ({
+      ...t,
+      title: "Read the paper",
+      status: "done",
+      completedAt: "2026-10-18",
+    }));
+    const reread = noteToTask(
+      source({ blocks: [written.title, written.metadataLine] }),
+      DEFAULT_TASK_TAG,
+    );
+    expect(reread).toMatchObject({
+      title: "Read the paper",
+      status: "done",
+      dueAt: "2026-10-20",
+      completedAt: "2026-10-18",
+      taskId: "abc",
+    });
+    expect(reread.extra?.lineNotes).toBe("see [[Garden]]");
+  });
+
+  it("rejects a value a note's line can't hold", () => {
+    expect(() =>
+      edit(["T", "[ ]"], (t) => ({ ...t, taskId: "has space" })),
+    ).toThrow(/task id/);
+  });
+});
+
+/** "DTSTART:…Z" for local midnight of a day, as v0.8.0's editor wrote it. */
+function utcStartOf(year: number, month: number, day: number): string {
+  return new Date(year, month - 1, day)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
+}
+
+describe("repairLegacyRecurrence (rules v0.8.0 wrote with a start date)", () => {
+  const start = utcStartOf(2026, 10, 16);
+
+  it("moves the start date to 🛫 and writes the rule as text", () => {
+    expect(
+      repairLegacyRecurrence(
+        `[ ] 📅 2026-10-20 🔁 DTSTART:${start} RRULE:FREQ=WEEKLY;BYDAY=MO`,
+      ),
+    ).toEqual({
+      text: "[ ] 📅 2026-10-20 🛫 2026-10-16 🔁 every week on Monday",
+    });
+  });
+
+  it("repairs a rule whose two parts were glued together", () => {
+    expect(
+      repairLegacyRecurrence(
+        `[ ] 🔁 DTSTART:${start}RRULE:FREQ=WEEKLY;INTERVAL=2 ⏫`,
+      ),
+    ).toEqual({ text: "[ ] 🛫 2026-10-16 🔁 every 2 weeks on Friday ⏫" });
+  });
+
+  it("reads a floating start date as written", () => {
+    expect(
+      repairLegacyRecurrence("[ ] 🔁 DTSTART:20261016T000000 RRULE:FREQ=DAILY"),
+    ).toEqual({ text: "[ ] 🛫 2026-10-16 🔁 every day" });
+  });
+
+  it("reads a start date with a time zone in that zone", () => {
+    expect(
+      repairLegacyRecurrence(
+        "[ ] 🔁 DTSTART;TZID=America/Argentina/Buenos_Aires:20261016T090000 RRULE:FREQ=DAILY",
+      ),
+    ).toEqual({ text: "[ ] 🛫 2026-10-16 🔁 every day" });
+  });
+
+  it("keeps a 🛫 date that matches the start date", () => {
+    expect(
+      repairLegacyRecurrence(
+        `[ ] 🛫 2026-10-16 🔁 DTSTART:${start} RRULE:FREQ=DAILY`,
+      ),
+    ).toEqual({ text: "[ ] 🛫 2026-10-16 🔁 every day" });
+  });
+
+  it("leaves other lines untouched", () => {
+    for (const line of [
+      "[ ] 🔁 every week",
+      "[ ] 🔁 RRULE:FREQ=WEEKLY;BYDAY=MO",
+      "Read paper",
+    ]) {
+      expect(repairLegacyRecurrence(line)).toEqual({ text: line });
+    }
+  });
+
+  it("explains how to fix it in Zotero when the 🛫 date differs", () => {
+    const line = `[ ] 🛫 2026-10-01 🔁 DTSTART:${start} RRULE:FREQ=DAILY`;
+    const result = repairLegacyRecurrence(line);
+    expect(result.text).toBe(line);
+    expect(result.error).toMatch(/Zotero/);
+    expect(result.error).toMatch(/🛫 2026-10-01/);
+    expect(result.error).not.toMatch(/line below/);
+  });
+
+  it("explains how to fix it in Zotero when the rule is unreadable", () => {
+    const result = repairLegacyRecurrence(
+      `[ ] 🔁 DTSTART:${start} RRULE:INTERVAL=2`,
+    );
+    expect(result.error).toMatch(/note/);
+    expect(result.error).not.toMatch(/line below/);
+  });
+
+  it("gives noteToTask the repaired rule and start date", () => {
+    const task = noteToTask(
+      source({
+        blocks: [
+          "Water plants",
+          `[ ] 📅 2026-10-20 🔁 DTSTART:${start} RRULE:FREQ=WEEKLY;BYDAY=MO`,
+        ],
+      }),
+      DEFAULT_TASK_TAG,
+    );
+    expect(task).toMatchObject({
+      title: "Water plants",
+      startAt: "2026-10-16",
+      dueAt: "2026-10-20",
+      isRecurring: true,
+      recurringInterval: "every week on Monday",
+    });
+    expect(task.extra?.lineNotes).toBeUndefined();
+  });
+
+  it("writes the repaired line on the next edit", () => {
+    const written = edit(
+      [
+        "Water plants",
+        `[ ] 📅 2026-10-20 🔁 DTSTART:${start} RRULE:FREQ=WEEKLY;BYDAY=MO`,
+      ],
+      (t) => ({ ...t, status: "done", completedAt: "2026-10-18" }),
+    );
+    expect(written.metadataLine).toBe(
+      "[x] 📅 2026-10-20 🛫 2026-10-16 🔁 every week on Monday ✅ 2026-10-18",
+    );
+  });
+
+  it("refuses the edit with the Zotero repair message when it can't repair", () => {
+    const blocks = [
+      "Water plants",
+      `[ ] 🛫 2026-10-01 🔁 DTSTART:${start} RRULE:FREQ=DAILY`,
+    ];
+    expect(() =>
+      noteToTask(source({ blocks }), DEFAULT_TASK_TAG),
+    ).not.toThrow();
+    expect(() => edit(blocks, (t) => ({ ...t, priority: "high" }))).toThrow(
+      /Zotero/,
+    );
+  });
+});
+
+describe("planNewTaskNote", () => {
+  it("puts a task from the timeline in My Library", () => {
+    const task: Task = {
+      id: "new-1",
+      title: "Brand new",
+      status: "todo",
+      priority: "medium",
+      tags: [],
+      createdAt: "2026-10-18T10:00:00+08:00",
+    };
+    const plan = planNewTaskNote(task);
+    expect(plan.libraryID).toBeUndefined();
+    expect(plan.parentKey).toBeUndefined();
+    expect(metadataLineFor(plan.task)).toBe("[ ]");
+  });
+
+  it("keeps the next occurrence's library, parent, ⏳ date and notes", () => {
+    const completed = noteToTask(
+      source({
+        libraryID: 5,
+        libraryName: "Lab Group",
+        blocks: [
+          "Water plants",
+          "[ ] 📅 2026-10-20 ⏳ 2026-10-19 🔁 every week ➕ 2026-09-01 see [[Garden]]",
+        ],
+        parent: { key: "PARENT01", title: "Botany" },
+      }),
+      DEFAULT_TASK_TAG,
+    );
+    // What complete_task hands to addTask: dates moved, extra kept.
+    const next: Task = {
+      ...completed,
+      id: "ai-1",
+      createdAt: "2026-10-18T10:00:00+08:00",
+      dueAt: "2026-10-27",
+      extra: { ...completed.extra, scheduledAt: "2026-10-26" },
+    };
+    const plan = planNewTaskNote(next);
+    expect(plan.libraryID).toBe(5);
+    expect(plan.parentKey).toBe("PARENT01");
+    expect(plan.task.extra).toEqual({
+      scheduledAt: "2026-10-26",
+      lineNotes: "see [[Garden]]",
+    });
+    // A rule right before notes would read them as part of the rule.
+    expect(metadataLineFor(plan.task)).toBe(
+      "[ ] 🔁 every week 📅 2026-10-27 ⏳ 2026-10-26 see [[Garden]]",
+    );
+  });
+
+  it("rejects a malformed library id", () => {
+    expect(() =>
+      planNewTaskNote({
+        id: "x",
+        title: "T",
+        status: "todo",
+        priority: "medium",
+        tags: [],
+        extra: { libraryID: "abc", noteKey: "ABCD1234" },
+      }),
+    ).toThrow(/library/i);
   });
 });

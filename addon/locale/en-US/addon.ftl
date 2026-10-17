@@ -6,6 +6,7 @@ error-load-notes = { $count ->
 error-task-missing = This task's note no longer exists. The timeline will refresh.
 error-library-read-only = “{ $name }” is read-only, so its tasks can't be changed here.
 error-task-parent-type = Tasks can only be added to regular items.
+error-task-parent-missing = This task belongs to an item that is no longer in the library, so a task can't be added under it.
 task-for-item-title = Read: { $title }
 undo-edit-task = Edit Task
 undo-trash-task = Move Task to Trash

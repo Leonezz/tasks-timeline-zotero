@@ -3,6 +3,7 @@ error-load-notes = { $count } 条任务笔记读取失败，详情见错误控�
 error-task-missing = 这条任务的笔记已不存在，时间线会自动刷新。
 error-library-read-only = “{ $name }”是只读的，无法在这里修改其中的任务。
 error-task-parent-type = 只能为普通条目添加任务。
+error-task-parent-missing = 这条任务所属的条目已不在文献库中，无法在其下添加任务。
 task-for-item-title = 阅读：{ $title }
 undo-edit-task = 编辑任务
 undo-trash-task = 将任务移到回收站

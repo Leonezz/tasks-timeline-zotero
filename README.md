@@ -62,7 +62,8 @@ and edits made in the timeline are written back to the notes.
   nothing is written until you confirm, and annotations that already became
   tasks are skipped.
 - Voice input starts disabled: Zotero's engine has no browser speech
-  recognition, so only the OpenAI/Gemini transcription providers can work.
+  recognition, so Settings → AI shows the Browser voice provider as
+  unavailable; choose the OpenAI or Gemini transcription provider.
 
 ## MCP (external AI agents)
 

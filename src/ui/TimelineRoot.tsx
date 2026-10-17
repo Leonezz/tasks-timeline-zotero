@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { TasksTimelineApp } from "@tasks-timeline/components";
-import type { Task } from "@tasks-timeline/components";
+import type { Task, VoiceRuntime } from "@tasks-timeline/components";
 import { BridgeSettingsRepository } from "./BridgeSettingsRepository";
 import { ZoteroSettingsTab } from "./ZoteroSettingsTab";
 import { zoteroToolSpecs } from "./zoteroTools";
@@ -90,6 +90,8 @@ function useZoteroTasks(source: TaskSource): Task[] {
   );
 }
 
+const NO_BROWSER_SPEECH: VoiceRuntime = { browserSpeechSupported: false };
+
 interface TimelineProps {
   win: Window;
   taskSource: TaskSource;
@@ -163,6 +165,8 @@ function ZoteroTimeline({
         // Notes hold rules as Obsidian Tasks text; the editor and the agent
         // must not save RRULE syntax or start dates a note can't hold.
         recurrenceFormat="text"
+        // Gecko has no speech service, so the Browser voice provider can't work.
+        voiceRuntime={NO_BROWSER_SPEECH}
         systemInDarkMode={systemInDarkMode}
         onTaskAdded={(task) =>
           report(taskActions.addTask(task)).then((stored) =>

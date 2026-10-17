@@ -240,9 +240,11 @@ describe("task mutations", function () {
     const note = new Zotero.Item("note");
     note.libraryID = item.libraryID;
     note.parentID = item.id;
+    // ➕ keeps the notes out of the rule: the parser's 🔁 field takes words,
+    // so "every week see" would be read as the rule. The next note drops ➕.
     note.setNote(
       "<p>Water plants weekly</p>" +
-        "<p>[ ] 📅 2026-10-20 ⏳ 2026-10-19 🔁 every week see [[Garden]]</p>",
+        "<p>[ ] 📅 2026-10-20 ⏳ 2026-10-19 🔁 every week ➕ 2026-09-01 see [[Garden]]</p>",
     );
     note.addTag("#task");
     await note.saveTx({ skipSelect: true } as any);

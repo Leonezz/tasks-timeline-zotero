@@ -164,6 +164,18 @@ describe("MCP server", function () {
     assert.include(note.getNote(), "[x]");
   });
 
+  it("refuses a recurrence rule a note can't hold before saving", async function () {
+    const before = data.taskStore.getTasks().length;
+    const create = await callTool("create_task", {
+      title: "Rule with a start date (MCP)",
+      recurrence: "DTSTART:20261016\nRRULE:FREQ=WEEKLY;BYDAY=MO",
+    });
+    const result = JSON.parse(create.value);
+    assert.isFalse(result.success);
+    assert.include(result.error, "startAt");
+    assert.equal(data.taskStore.getTasks().length, before);
+  });
+
   it("applies the library privacy switches", async function () {
     const paper = new Zotero.Item("journalArticle");
     paper.libraryID = Zotero.Libraries.userLibraryID;

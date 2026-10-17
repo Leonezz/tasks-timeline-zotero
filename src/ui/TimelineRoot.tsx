@@ -160,6 +160,9 @@ function ZoteroTimeline({
         customSettingsTabs={customSettingsTabs}
         aiSystemPrompt={ai.systemPrompt()}
         aiExtraTools={aiExtraTools}
+        // Notes hold rules as Obsidian Tasks text; the editor and the agent
+        // must not save RRULE syntax or start dates a note can't hold.
+        recurrenceFormat="text"
         systemInDarkMode={systemInDarkMode}
         onTaskAdded={(task) =>
           report(taskActions.addTask(task)).then((stored) =>

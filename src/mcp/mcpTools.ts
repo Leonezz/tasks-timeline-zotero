@@ -43,6 +43,9 @@ function capabilityContext(
     deleteTask: (id) => mutations.deleteTask(id),
     // No user to ask: anything needing confirmation is refused.
     confirmPolicy: "require",
+    // Task notes hold rules as Obsidian Tasks text: RRULE syntax is stored as
+    // text, and rules a note can't hold (DTSTART) are refused before saving.
+    recurrenceFormat: "text",
   };
 }
 

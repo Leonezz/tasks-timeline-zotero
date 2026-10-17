@@ -2,7 +2,13 @@ import type { Task } from "@tasks-timeline/components";
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
 import { applyTaskNoteContent, newTaskNoteHtml } from "./noteEditing";
-import { metadataLineFor, parseTaskId, taskIdFor } from "./noteFormat";
+import {
+  metadataLineFor,
+  parseTaskId,
+  planNewTaskNote,
+  taskIdFor,
+  writeTaskBlocks,
+} from "./noteFormat";
 import type { TaskActions } from "../shared/uiContract";
 import type { ZoteroTaskStore } from "./taskStore";
 
@@ -29,12 +35,20 @@ export class ZoteroTaskMutations implements TaskActions {
     private readonly taskTag: () => string,
   ) {}
 
-  /** Returns the stored task, whose id ("libraryID/KEY") differs from the input's. */
+  /**
+   * Returns the stored task, whose id ("libraryID/KEY") differs from the
+   * input's. New tasks go to My Library; a task made from an existing one
+   * (the next occurrence of a recurring task) goes where that one is.
+   */
   addTask = async (task: Task): Promise<Task> => {
-    const note = await this.createTaskNote(
-      Zotero.Libraries.userLibraryID,
-      task,
-    );
+    const plan = planNewTaskNote(task);
+    const libraryID = plan.libraryID ?? Zotero.Libraries.userLibraryID;
+    this.requireEditableLibrary(libraryID);
+    const parentID =
+      plan.parentKey === undefined
+        ? undefined
+        : this.requireParent(libraryID, plan.parentKey).id;
+    const note = await this.createTaskNote(libraryID, plan.task, parentID);
     const id = taskIdFor(note.libraryID, note.key);
     const stored = this.store.getTasks().find((t) => t.id === id);
     if (!stored) {
@@ -50,8 +64,7 @@ export class ZoteroTaskMutations implements TaskActions {
         applyTaskNoteContent(
           note.getNote(),
           {
-            title: task.title,
-            metadataLine: metadataLineFor(task),
+            blocks: (current) => writeTaskBlocks(task, current),
             description:
               task.description !== previous.description
                 ? (task.description ?? "")
@@ -167,7 +180,7 @@ export class ZoteroTaskMutations implements TaskActions {
       newTaskNoteHtml(
         {
           title: task.title,
-          metadataLine: metadataLineFor({ ...task, extra: undefined }),
+          metadataLine: metadataLineFor(task),
           description: task.description,
         },
         this.parser(),
@@ -197,6 +210,14 @@ export class ZoteroTaskMutations implements TaskActions {
       throw new Error(getString("error-task-missing"));
     }
     return note;
+  }
+
+  private requireParent(libraryID: number, key: string): Zotero.Item {
+    const parent = Zotero.Items.getByLibraryAndKey(libraryID, key);
+    if (!parent || !parent.isRegularItem() || parent.deleted) {
+      throw new Error(getString("error-task-parent-missing"));
+    }
+    return parent;
   }
 
   private requireEditableNote(taskId: string): Zotero.Item {

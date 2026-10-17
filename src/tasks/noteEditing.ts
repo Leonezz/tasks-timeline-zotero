@@ -4,10 +4,21 @@
  * keeps its markup.
  */
 import { isMetadataBlock } from "./noteFormat";
+import type { TaskBlocks } from "./noteFormat";
 
 export interface TaskNoteContent {
   title: string;
   metadataLine: string;
+  /** New description; undefined keeps the existing description untouched. */
+  description?: string;
+}
+
+export interface TaskNoteEdit {
+  /**
+   * The new title and metadata blocks, from the note's current text of
+   * block 0 and (when there is one) of the metadata block.
+   */
+  blocks: (current: { title: string; metadata?: string }) => TaskBlocks;
   /** New description; undefined keeps the existing description untouched. */
   description?: string;
 }
@@ -54,10 +65,13 @@ export function newTaskNoteHtml(
   return htmlOf(body);
 }
 
-/** Rewrites title and metadata (and description if given) in existing HTML. */
+/**
+ * Rewrites title and metadata (and description if given) in existing HTML.
+ * A block whose text doesn't change keeps its markup.
+ */
 export function applyTaskNoteContent(
   html: string,
-  content: TaskNoteContent,
+  edit: TaskNoteEdit,
   parser: DOMParser,
 ): string {
   const { doc, body } = parseBody(html, parser);
@@ -70,6 +84,16 @@ export function applyTaskNoteContent(
   for (const node of Array.from(container.childNodes)) {
     if (node && textOf(node).length > 0) blocks.push(node);
   }
+
+  const existingMetadata = blocks[1];
+  const hasMetadata =
+    existingMetadata !== undefined &&
+    existingMetadata.nodeType === existingMetadata.ELEMENT_NODE &&
+    isMetadataBlock(textOf(existingMetadata));
+  const content = edit.blocks({
+    title: blocks[0] ? textOf(blocks[0]) : "",
+    metadata: hasMetadata ? textOf(existingMetadata) : undefined,
+  });
 
   let titleNode = blocks[0];
   if (!titleNode) {
@@ -84,26 +108,24 @@ export function applyTaskNoteContent(
     titleNode = replacement;
   }
 
-  let metadataNode = blocks[1];
-  if (
-    metadataNode &&
-    metadataNode.nodeType === metadataNode.ELEMENT_NODE &&
-    isMetadataBlock(textOf(metadataNode))
-  ) {
-    metadataNode.textContent = content.metadataLine;
+  let metadataNode = existingMetadata;
+  if (hasMetadata) {
+    if (textOf(metadataNode) !== content.metadataLine) {
+      metadataNode.textContent = content.metadataLine;
+    }
   } else {
     metadataNode = block(doc, "p", content.metadataLine);
     container.insertBefore(metadataNode, titleNode.nextSibling);
   }
 
-  if (content.description !== undefined) {
+  if (edit.description !== undefined) {
     let next = metadataNode.nextSibling;
     while (next) {
       const following = next.nextSibling;
       container.removeChild(next);
       next = following;
     }
-    appendDescription(doc, container, content.description);
+    appendDescription(doc, container, edit.description);
   }
   return htmlOf(body);
 }
